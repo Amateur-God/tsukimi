@@ -48,8 +48,7 @@ impl SubtitleProvider for SubDLProvider {
     }
 
     fn is_enabled(&self) -> bool {
-        SETTINGS.subtitle_provider_enabled(self.id())
-            && !SETTINGS.subdl_api_key().is_empty()
+        SETTINGS.subtitle_provider_enabled(self.id()) && !SETTINGS.subdl_api_key().is_empty()
     }
 
     fn has_credentials(&self) -> bool {
@@ -57,10 +56,7 @@ impl SubtitleProvider for SubDLProvider {
     }
 
     async fn search(
-        &self,
-        query: &str,
-        imdb_id: Option<&str>,
-        language: &str,
+        &self, query: &str, imdb_id: Option<&str>, language: &str,
     ) -> anyhow::Result<Vec<SubtitleResult>> {
         let api_key = SETTINGS.subdl_api_key();
         if api_key.is_empty() {
@@ -68,10 +64,9 @@ impl SubtitleProvider for SubDLProvider {
         }
 
         let client = reqwest::Client::new();
-        let mut request = client.get(API_BASE).query(&[
-            ("api_key", api_key.as_str()),
-            ("film_name", query),
-        ]);
+        let mut request = client
+            .get(API_BASE)
+            .query(&[("api_key", api_key.as_str()), ("film_name", query)]);
         if !language.is_empty() {
             request = request.query(&[("languages", language.to_uppercase())]);
         }
@@ -93,9 +88,7 @@ impl SubtitleProvider for SubDLProvider {
             .map(|(index, entry)| SubtitleResult {
                 provider: self.id().to_string(),
                 id: format!("subdl-{index}"),
-                title: entry
-                    .release_name
-                    .unwrap_or_else(|| query.to_string()),
+                title: entry.release_name.unwrap_or_else(|| query.to_string()),
                 language: entry.language,
                 download_url: Some(entry.url),
             })

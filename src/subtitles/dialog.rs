@@ -38,6 +38,8 @@ enum SubtitleZone {
     Close,
 }
 
+type DownloadCallback = Box<dyn Fn(PathBuf)>;
+
 struct SubtitleSearchDialogInner {
     dialog: adw::Dialog,
     search_entry: adw::EntryRow,
@@ -49,7 +51,7 @@ struct SubtitleSearchDialogInner {
     close_button: gtk::Button,
     results: RefCell<Vec<SubtitleResult>>,
     selected_index: RefCell<Option<usize>>,
-    on_downloaded: RefCell<Option<Box<dyn Fn(PathBuf)>>>,
+    on_downloaded: RefCell<Option<DownloadCallback>>,
     imdb_id: RefCell<Option<String>>,
     zone: RefCell<SubtitleZone>,
     result_index: RefCell<usize>,
@@ -221,7 +223,7 @@ impl SubtitleSearchDialogInner {
 impl SubtitleSearchDialog {
     pub fn new(query: &str, language: &str, imdb_id: Option<&str>) -> Self {
         let dialog = adw::Dialog::builder()
-            .title(&gettext("Download Subtitles"))
+            .title(gettext("Download Subtitles"))
             .content_width(520)
             .content_height(480)
             .build();
@@ -239,8 +241,12 @@ impl SubtitleSearchDialog {
         let language_labels: Vec<String> = std::iter::once(gettext("Any language"))
             .chain(language_codes::language_combo_labels())
             .collect();
-        let language_model =
-            gtk::StringList::new(&language_labels.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+        let language_model = gtk::StringList::new(
+            &language_labels
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+        );
         let language_combo = adw::ComboRow::new();
         language_combo.set_title(&gettext("Language"));
         language_combo.set_model(Some(&language_model));
@@ -350,9 +356,9 @@ impl SubtitleSearchDialog {
                 let language = inner.selected_language_code();
                 let registry = SubtitleProviderRegistry::new();
                 if registry.searchable_providers().is_empty() {
-                    inner.status_label.set_text(&gettext(
-                        "Configure subtitle provider API keys in Settings",
-                    ));
+                    inner
+                        .status_label
+                        .set_text(&gettext("Configure subtitle provider API keys in Settings"));
                     return;
                 }
                 inner.status_label.set_text(&gettext("Searching..."));
@@ -371,12 +377,9 @@ impl SubtitleSearchDialog {
 
                 spawn(async move {
                     let registry = SubtitleProviderRegistry::new();
+                    let imdb_id = inner_for_spawn.imdb_id.borrow().clone();
                     let found = registry
-                        .search_all(
-                            &query,
-                            inner_for_spawn.imdb_id.borrow().as_deref(),
-                            &language,
-                        )
+                        .search_all(&query, imdb_id.as_deref(), &language)
                         .await;
 
                     for result in found {
@@ -406,30 +409,32 @@ impl SubtitleSearchDialog {
 
         {
             let inner = inner.clone();
-            self.inner.results_list.connect_row_selected(move |list, row| {
-                let index = row.and_then(|selected| {
-                    let mut child = list.first_child();
-                    let mut index = 0usize;
-                    while let Some(row_widget) = child {
-                        let next = row_widget.next_sibling();
-                        if let Ok(list_row) = row_widget.downcast::<gtk::ListBoxRow>()
-                            && list_row.eq(selected)
-                        {
-                            return Some(index);
+            self.inner
+                .results_list
+                .connect_row_selected(move |list, row| {
+                    let index = row.and_then(|selected| {
+                        let mut child = list.first_child();
+                        let mut index = 0usize;
+                        while let Some(row_widget) = child {
+                            let next = row_widget.next_sibling();
+                            if let Ok(list_row) = row_widget.downcast::<gtk::ListBoxRow>()
+                                && list_row.eq(selected)
+                            {
+                                return Some(index);
+                            }
+                            index += 1;
+                            child = next;
                         }
-                        index += 1;
-                        child = next;
+                        None
+                    });
+                    *inner.selected_index.borrow_mut() = index;
+                    if let Some(index) = index {
+                        *inner.result_index.borrow_mut() = index;
                     }
-                    None
+                    inner
+                        .download_button
+                        .set_sensitive(inner.selected_index.borrow().is_some());
                 });
-                *inner.selected_index.borrow_mut() = index;
-                if let Some(index) = index {
-                    *inner.result_index.borrow_mut() = index;
-                }
-                inner
-                    .download_button
-                    .set_sensitive(inner.selected_index.borrow().is_some());
-            });
         }
 
         {
@@ -471,7 +476,8 @@ impl SubtitleSearchDialog {
                             dialog.close();
                         }
                         Err(err) => {
-                            status_label.set_text(&format!("{}: {err}", gettext("Download failed")));
+                            status_label
+                                .set_text(&format!("{}: {err}", gettext("Download failed")));
                             download_button.set_sensitive(true);
                         }
                     }
@@ -518,10 +524,10 @@ fn language_combo_index(language: &str) -> u32 {
 fn popover_open_in_tree(root: &gtk::Widget) -> bool {
     let mut stack = vec![root.clone()];
     while let Some(widget) = stack.pop() {
-        if let Ok(popover) = widget.clone().downcast::<gtk::Popover>() {
-            if popover.is_visible() {
-                return true;
-            }
+        if let Ok(popover) = widget.clone().downcast::<gtk::Popover>()
+            && popover.is_visible()
+        {
+            return true;
         }
         let mut child = widget.first_child();
         while let Some(next) = child {

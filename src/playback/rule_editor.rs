@@ -1,22 +1,24 @@
 use adw::prelude::*;
 use gettextrs::gettext;
 
-use super::language_codes::{
-    code_at_index,
-    code_at_when_index,
-    index_for_code,
-    index_for_when_code,
-    language_combo_labels,
-    when_language_combo_labels,
-};
-use super::rules::{
-    AudioOutcome,
-    LanguageCondition,
-    PlaybackOutcome,
-    PlaybackRule,
-    PlaybackRulesConfig,
-    RuleCondition,
-    SubtitleOutcome,
+use super::{
+    language_codes::{
+        code_at_index,
+        code_at_when_index,
+        index_for_code,
+        index_for_when_code,
+        language_combo_labels,
+        when_language_combo_labels,
+    },
+    rules::{
+        AudioOutcome,
+        LanguageCondition,
+        PlaybackOutcome,
+        PlaybackRule,
+        PlaybackRulesConfig,
+        RuleCondition,
+        SubtitleOutcome,
+    },
 };
 use crate::ui::input::{
     InputAction,
@@ -40,17 +42,18 @@ pub fn handle_active_input(action: InputAction) -> bool {
             *slot.borrow_mut() = None;
             return false;
         }
-        if popover_navigator::handle_widget_tree(&editor.dialog.clone().upcast::<gtk::Widget>(), action)
-        {
+        if popover_navigator::handle_widget_tree(
+            &editor.dialog.clone().upcast::<gtk::Widget>(),
+            action,
+        ) {
             return true;
         }
-        SETTINGS_NAVIGATOR.lock().unwrap().handle_widgets(
-            &editor.focus_widgets(),
-            action,
-            || {
+        SETTINGS_NAVIGATOR
+            .lock()
+            .unwrap()
+            .handle_widgets(&editor.focus_widgets(), action, || {
                 editor.dialog.close();
-            },
-        )
+            })
     })
 }
 
@@ -71,7 +74,9 @@ impl PlaybackRuleEditor {
     pub fn new_rule_dialog(next_priority: u32) -> Self {
         let editor = Self::build_dialog(&gettext("Add Subtitle Rule"), false);
         editor.priority_entry.set_value(next_priority as f64);
-        editor.when_lang_combo.set_selected(index_for_when_code(Some("jpn")));
+        editor
+            .when_lang_combo
+            .set_selected(index_for_when_code(Some("jpn")));
         editor.when_op_combo.set_selected(0);
         editor.subtitle_combo.set_selected(0);
         editor
@@ -256,11 +261,13 @@ impl PlaybackRuleEditor {
                 self.when_lang_combo.set_selected(0);
             }
             LanguageCondition::Equals(lang) => {
-                self.when_lang_combo.set_selected(index_for_when_code(Some(lang)));
+                self.when_lang_combo
+                    .set_selected(index_for_when_code(Some(lang)));
                 self.when_op_combo.set_selected(0);
             }
             LanguageCondition::NotEquals(lang) => {
-                self.when_lang_combo.set_selected(index_for_when_code(Some(lang)));
+                self.when_lang_combo
+                    .set_selected(index_for_when_code(Some(lang)));
                 self.when_op_combo.set_selected(1);
             }
         }
@@ -324,15 +331,9 @@ impl PlaybackRuleEditorRef {
     fn build_outcome(&self) -> PlaybackOutcome {
         let sub_lang = code_at_index(self.subtitle_lang_combo.selected());
         let subtitles = match self.subtitle_combo.selected() {
-            1 => SubtitleOutcome::Forced {
-                language: sub_lang,
-            },
-            2 => SubtitleOutcome::Full {
-                language: sub_lang,
-            },
-            3 => SubtitleOutcome::PreferLanguage {
-                language: sub_lang,
-            },
+            1 => SubtitleOutcome::Forced { language: sub_lang },
+            2 => SubtitleOutcome::Full { language: sub_lang },
+            3 => SubtitleOutcome::PreferLanguage { language: sub_lang },
             _ => SubtitleOutcome::Off,
         };
 

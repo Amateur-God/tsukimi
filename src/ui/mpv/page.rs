@@ -268,8 +268,7 @@ mod imp {
         pub fallback_context: RefCell<Option<super::FallbackContext>>,
         pub playback_direct_mode: RefCell<super::PlaybackDirectMode>,
         pub queued_playback_direct_mode: RefCell<Option<super::PlaybackDirectMode>>,
-        pub trickplay_manifest:
-            RefCell<Option<crate::ui::mpv::trickplay::TrickplayManifest>>,
+        pub trickplay_manifest: RefCell<Option<crate::ui::mpv::trickplay::TrickplayManifest>>,
         pub trickplay_cache: RefCell<crate::ui::mpv::trickplay::TrickplayCache>,
         pub trickplay_preview: RefCell<Option<gtk::Popover>>,
         pub trickplay_picture: RefCell<Option<gtk::Picture>>,
@@ -366,13 +365,14 @@ mod imp {
                 .build();
 
             self.video_scale.set_player(Some(&self.video.get()));
-            self.video_scale.connect_scrub_position_changed(glib::clone!(
-                #[weak(rename_to = imp)]
-                self,
-                move |position| {
-                    imp.obj().update_trickplay_preview(position);
-                }
-            ));
+            self.video_scale
+                .connect_scrub_position_changed(glib::clone!(
+                    #[weak(rename_to = imp)]
+                    self,
+                    move |position| {
+                        imp.obj().update_trickplay_preview(position);
+                    }
+                ));
             self.video_scale.connect_scrub_finished(glib::clone!(
                 #[weak(rename_to = imp)]
                 self,
@@ -588,9 +588,10 @@ impl MPVPage {
             #[weak(rename_to = obj)]
             self,
             async move {
-                if let Ok(info) =
-                    crate::utils::spawn_tokio(async move { JELLYFIN_CLIENT.get_item_info(&id_for_info).await })
-                        .await
+                if let Ok(info) = crate::utils::spawn_tokio(async move {
+                    JELLYFIN_CLIENT.get_item_info(&id_for_info).await
+                })
+                .await
                 {
                     obj.imp()
                         .imdb_id
@@ -714,8 +715,7 @@ impl MPVPage {
                 }
                 imp.trickplay_cache.borrow_mut().clear();
 
-                let audio_lang =
-                    detect_default_audio_language(&media_source.media_streams);
+                let audio_lang = detect_default_audio_language(&media_source.media_streams);
                 let resolved = resolve_playback_tracks(audio_lang.as_deref());
 
                 let media_stream = if resolved.subtitles_off {
@@ -749,7 +749,8 @@ impl MPVPage {
 
                 if resolved.subtitles_off {
                     imp.video.set_slang(String::new());
-                    imp.video.set_sid(crate::ui::mpv::tsukimi_mpv::TrackSelection::None);
+                    imp.video
+                        .set_sid(crate::ui::mpv::tsukimi_mpv::TrackSelection::None);
                 } else if !rules_active
                     && let Some(selected) = selected.as_ref()
                     && !selected.sub_lang.is_empty()
@@ -1521,19 +1522,12 @@ impl MPVPage {
             return;
         };
 
-        if let Some(bytes) = imp
-            .trickplay_cache
-            .borrow()
-            .cached_tile(&manifest, seconds)
-        {
+        if let Some(bytes) = imp.trickplay_cache.borrow().cached_tile(&manifest, seconds) {
             self.show_trickplay_preview(bytes, &manifest);
             return;
         }
 
-        let url_path = imp
-            .trickplay_cache
-            .borrow()
-            .preview_url(&manifest, seconds);
+        let url_path = imp.trickplay_cache.borrow().preview_url(&manifest, seconds);
         spawn(glib::clone!(
             #[weak(rename_to = obj)]
             self,
@@ -1542,10 +1536,11 @@ impl MPVPage {
                     Ok(bytes) => bytes,
                     Err(_) => return,
                 };
-                obj.imp()
-                    .trickplay_cache
-                    .borrow_mut()
-                    .store_tile(&manifest, seconds, bytes.clone());
+                obj.imp().trickplay_cache.borrow_mut().store_tile(
+                    &manifest,
+                    seconds,
+                    bytes.clone(),
+                );
                 obj.show_trickplay_preview(&bytes, &manifest);
             }
         ));
@@ -1561,26 +1556,19 @@ impl MPVPage {
             return;
         };
 
-        let popover = imp
-            .trickplay_preview
-            .borrow()
-            .clone()
-            .unwrap_or_else(|| {
-                let popover = gtk::Popover::new();
-                popover.set_has_arrow(true);
-                let picture = gtk::Picture::new();
-                popover.set_child(Some(&picture));
-                imp.trickplay_picture.replace(Some(picture));
-                imp.trickplay_preview.replace(Some(popover.clone()));
-                popover
-            });
+        let popover = imp.trickplay_preview.borrow().clone().unwrap_or_else(|| {
+            let popover = gtk::Popover::new();
+            popover.set_has_arrow(true);
+            let picture = gtk::Picture::new();
+            popover.set_child(Some(&picture));
+            imp.trickplay_picture.replace(Some(picture));
+            imp.trickplay_preview.replace(Some(popover.clone()));
+            popover
+        });
 
         if let Some(picture) = imp.trickplay_picture.borrow().as_ref() {
             picture.set_pixbuf(Some(&pixbuf));
-            picture.set_size_request(
-                manifest.tile_width as i32,
-                manifest.tile_height as i32,
-            );
+            picture.set_size_request(manifest.tile_width as i32, manifest.tile_height as i32);
         }
 
         popover.set_parent(&imp.video_scale.get());
@@ -1606,8 +1594,7 @@ impl MPVPage {
         window.sync_tv_button_hints();
         window.allow_suspend();
 
-        let global_fullscreen =
-            SETTINGS.is_fullscreen() || SETTINGS.tv_start_fullscreen();
+        let global_fullscreen = SETTINGS.is_fullscreen() || SETTINGS.tv_start_fullscreen();
         if window.is_fullscreen()
             && !global_fullscreen
             && !self.imp().was_fullscreen_before_play.get()

@@ -16,7 +16,6 @@ use gtk::{
     gio,
     glib::{
         self,
-        clone,
     },
     template_callbacks,
 };
@@ -43,6 +42,32 @@ use crate::{
     },
 };
 
+// #region agent log
+fn agent_log(hypothesis_id: &str, location: &str, message: &str, data: serde_json::Value) {
+    use std::io::Write;
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let line = serde_json::json!({
+        "sessionId": "ef5d72",
+        "hypothesisId": hypothesis_id,
+        "location": location,
+        "message": message,
+        "data": data,
+        "timestamp": ts,
+            "runId": "post-fix"
+    });
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/var/mnt/SSD/Atlas Commons/technitiumdns-api/.cursor/debug-ef5d72.log")
+    {
+        let _ = writeln!(f, "{line}");
+    }
+}
+// #endregion
+
 pub(crate) mod imp {
 
     use std::sync::{
@@ -50,11 +75,13 @@ pub(crate) mod imp {
         atomic::AtomicBool,
     };
 
-    use std::cell::{
-        Cell,
-        RefCell,
+    use std::{
+        cell::{
+            Cell,
+            RefCell,
+        },
+        collections::HashMap,
     };
-    use std::collections::HashMap;
 
     use glib::subclass::InitializingObject;
     use gtk::glib::Properties;
@@ -62,11 +89,15 @@ pub(crate) mod imp {
     use super::*;
     use crate::ui::provider::tu_object::TuObject;
 
+    type LoadNearEndCb = std::rc::Rc<dyn Fn(&super::TuViewScrolled)>;
+
     pub struct SelectionWrap(pub gtk::SingleSelection);
 
     impl Default for SelectionWrap {
         fn default() -> Self {
-            Self(gtk::SingleSelection::new(Some(gio::ListStore::new::<TuObject>())))
+            Self(gtk::SingleSelection::new(Some(gio::ListStore::new::<
+                TuObject,
+            >())))
         }
     }
 
@@ -104,7 +135,7 @@ pub(crate) mod imp {
         pub measured_item_width: RefCell<Option<i32>>,
         pub bound_items: RefCell<HashMap<u32, gtk::ListItem>>,
         pub last_pagination_at: Cell<u32>,
-        pub load_near_end: RefCell<Option<std::rc::Rc<dyn Fn(&super::TuViewScrolled)>>>,
+        pub load_near_end: RefCell<Option<LoadNearEndCb>>,
     }
 
     #[glib::object_subclass]
@@ -130,11 +161,12 @@ pub(crate) mod imp {
             let obj = self.obj();
             obj.set_view_type(ViewType::GridView);
             let weak = obj.downgrade();
-            self.scrolled_window.connect_notify_local(Some("width"), move |_, _| {
-                if let Some(obj) = weak.upgrade() {
-                    obj.update_grid_columns();
-                }
-            });
+            self.scrolled_window
+                .connect_notify_local(Some("width"), move |_, _| {
+                    if let Some(obj) = weak.upgrade() {
+                        obj.update_grid_columns();
+                    }
+                });
             let weak = obj.downgrade();
             obj.connect_map(move |_| {
                 if let Some(obj) = weak.upgrade() {
@@ -145,6 +177,9 @@ pub(crate) mod imp {
             self.selection.connect_selected_notify(move |_| {
                 if let Some(obj) = weak.upgrade() {
                     obj.refresh_poster_focus_state();
+                    if crate::tv::cursor::suppress_pointer_hover() {
+                        crate::ui::widgets::hover_scale::request_pointer_targeting_sync();
+                    }
                 }
             });
         }
@@ -208,6 +243,9 @@ impl TuViewScrolled {
         }
         self.update_grid_columns();
         self.schedule_grid_layout_refresh();
+        if crate::tv::cursor::suppress_pointer_hover() {
+            crate::ui::widgets::hover_scale::request_pointer_targeting_sync();
+        }
     }
 
     fn schedule_grid_layout_refresh(&self) {
@@ -247,10 +285,16 @@ impl TuViewScrolled {
                             .borrow_mut()
                             .insert(position, list_item.clone());
                         let selected = obj.imp().selection.selected();
-                        if let Some(child) = list_item.child().and_downcast::<super::tu_list_item::TuListItem>() {
+                        if let Some(child) = list_item
+                            .child()
+                            .and_downcast::<super::tu_list_item::TuListItem>()
+                        {
                             child.set_poster_focused(
                                 selected != gtk::INVALID_LIST_POSITION && position == selected,
                             );
+                            if crate::tv::cursor::suppress_pointer_hover() {
+                                crate::ui::widgets::hover_scale::request_pointer_targeting_sync();
+                            }
                         }
                         Self::attach_grid_pointer_activate(&obj, list_item);
                         if let Some(child) = list_item.child() {
@@ -346,23 +390,25 @@ impl TuViewScrolled {
 
         let edge_load = std::rc::Rc::clone(&try_load);
         let weak = self.downgrade();
-        self.imp().scrolled_window.connect_edge_reached(move |_scrolled, pos| {
-            if pos == gtk::PositionType::Bottom {
-                if let Some(obj) = weak.upgrade() {
+        self.imp()
+            .scrolled_window
+            .connect_edge_reached(move |_scrolled, pos| {
+                if pos == gtk::PositionType::Bottom
+                    && let Some(obj) = weak.upgrade()
+                {
                     edge_load(&obj);
                 }
-            }
-        });
+            });
 
         let overshot_load = std::rc::Rc::clone(&try_load);
         let weak = self.downgrade();
         self.imp()
             .scrolled_window
             .connect_edge_overshot(move |_scrolled, pos| {
-                if pos == gtk::PositionType::Bottom {
-                    if let Some(obj) = weak.upgrade() {
-                        overshot_load(&obj);
-                    }
+                if pos == gtk::PositionType::Bottom
+                    && let Some(obj) = weak.upgrade()
+                {
+                    overshot_load(&obj);
                 }
             });
     }
@@ -375,16 +421,59 @@ impl TuViewScrolled {
         let selected = self.selected_index();
         let cols = self.grid_column_count().max(1) as u32;
         let last_row = total.saturating_sub(1) / cols;
-        if selected / cols < last_row.saturating_sub(1) {
+        let selected_row = selected / cols;
+        let near_end = selected_row >= last_row.saturating_sub(1);
+        let blocked_by_pagination = total <= self.imp().last_pagination_at.get();
+        // #region agent log
+        if near_end {
+            agent_log(
+                "E",
+                "tuview_scrolled.rs:maybe_load_near_end",
+                "pagination check",
+                serde_json::json!({
+                    "selected": selected,
+                    "selectedRow": selected_row,
+                    "total": total,
+                    "cols": cols,
+                    "lastRow": last_row,
+                    "nearEnd": near_end,
+                    "blockedByPagination": blocked_by_pagination,
+                    "lastPaginationAt": self.imp().last_pagination_at.get()
+                }),
+            );
+        }
+        // #endregion
+        if selected_row < last_row.saturating_sub(1) {
             return;
         }
-        if total <= self.imp().last_pagination_at.get() {
+        if blocked_by_pagination {
             return;
         }
         self.imp().last_pagination_at.set(total);
         if let Some(load) = self.imp().load_near_end.borrow().as_ref() {
+            // #region agent log
+            agent_log(
+                "E",
+                "tuview_scrolled.rs:maybe_load_near_end",
+                "triggering load_near_end",
+                serde_json::json!({ "total": total, "selected": selected }),
+            );
+            // #endregion
             load(self);
         }
+    }
+
+    fn scroll_metrics(&self) -> serde_json::Value {
+        let adj = self.imp().scrolled_window.vadjustment();
+        let bound = self.imp().bound_items.borrow();
+        serde_json::json!({
+            "adjValue": adj.value(),
+            "adjUpper": adj.upper(),
+            "adjPage": adj.page_size(),
+            "adjMax": (adj.upper() - adj.page_size()).max(0.0),
+            "boundCount": bound.len(),
+            "selectedBound": bound.contains_key(&self.selected_index())
+        })
     }
 
     pub fn n_items(&self) -> u32 {
@@ -411,12 +500,16 @@ impl TuViewScrolled {
     }
 
     pub fn clear_selection(&self) {
-        self.imp().selection.set_selected(gtk::INVALID_LIST_POSITION);
+        self.imp()
+            .selection
+            .set_selected(gtk::INVALID_LIST_POSITION);
         self.clear_tv_focus();
     }
 
     pub fn clear_tv_focus(&self) {
-        self.imp().selection.set_selected(gtk::INVALID_LIST_POSITION);
+        self.imp()
+            .selection
+            .set_selected(gtk::INVALID_LIST_POSITION);
     }
 
     fn default_item_width(&self) -> i32 {
@@ -424,30 +517,6 @@ impl TuViewScrolled {
             crate::ui::provider::tu_item::PreferSize::Video => 280,
             crate::ui::provider::tu_item::PreferSize::Post => 185,
             crate::ui::provider::tu_item::PreferSize::Auto => 210,
-        }
-    }
-
-    fn estimated_item_width(&self) -> i32 {
-        let fallback = self.default_item_width();
-        let Some(measured) = *self.imp().measured_item_width.borrow() else {
-            return fallback;
-        };
-        if measured <= 0 {
-            return fallback;
-        }
-        let viewport = self.imp().scrolled_window.width().max(1);
-        if measured >= viewport.saturating_sub(72) {
-            return fallback;
-        }
-        measured.clamp(fallback / 2, fallback * 2)
-    }
-
-    fn estimated_item_height(&self) -> i32 {
-        let width = self.estimated_item_width().max(1);
-        match *self.imp().prefer_size_cache.borrow() {
-            crate::ui::provider::tu_item::PreferSize::Video => width * 141 / 250,
-            crate::ui::provider::tu_item::PreferSize::Post => width * 260 / 167,
-            crate::ui::provider::tu_item::PreferSize::Auto => width * 210 / 167,
         }
     }
 
@@ -506,7 +575,7 @@ impl TuViewScrolled {
         let current = self.selected_index() as i32;
         let next = (current + delta).clamp(0, count - 1) as u32;
         imp.selection.set_selected(next);
-        self.scroll_to_selected(next);
+        self.scroll_to_selected(next, delta, 0);
     }
 
     pub fn grid_column_count(&self) -> i32 {
@@ -531,16 +600,14 @@ impl TuViewScrolled {
 
     fn list_item_center(list_item: &gtk::ListItem, grid: &gtk::GridView) -> Option<(f64, f64)> {
         let widget = list_item.child()?.upcast::<gtk::Widget>();
-        let allocation = widget.allocation();
-        if allocation.width() <= 0 || allocation.height() <= 0 {
+        let width = widget.width();
+        let height = widget.height();
+        if width <= 0 || height <= 0 {
             return None;
         }
-        let (x, y) = widget.translate_coordinates(
-            grid.upcast_ref::<gtk::Widget>(),
-            allocation.width() as f64 / 2.0,
-            allocation.height() as f64 / 2.0,
-        )?;
-        Some((x, y))
+        let point = gtk::graphene::Point::new(width as f32 / 2.0, height as f32 / 2.0);
+        let translated = widget.compute_point(grid.upcast_ref::<gtk::Widget>(), &point)?;
+        Some((f64::from(translated.x()), f64::from(translated.y())))
     }
 
     fn move_grid_selection_spatial(&self, row_delta: i32) -> bool {
@@ -600,8 +667,11 @@ impl TuViewScrolled {
         let Some((next, _)) = best else {
             return false;
         };
+        if row_delta > 0 {
+            self.maybe_load_near_end();
+        }
         imp.selection.set_selected(next);
-        self.scroll_to_selected(next);
+        self.scroll_to_selected(next, row_delta, 0);
         self.refresh_poster_focus_state();
         true
     }
@@ -637,8 +707,11 @@ impl TuViewScrolled {
         if next == current {
             return false;
         }
+        if row_delta > 0 {
+            self.maybe_load_near_end();
+        }
         imp.selection.set_selected(next as u32);
-        self.scroll_to_selected(next as u32);
+        self.scroll_to_selected(next as u32, row_delta, col_delta);
         self.refresh_poster_focus_state();
         self.maybe_load_near_end();
         true
@@ -651,6 +724,20 @@ impl TuViewScrolled {
             return;
         }
         if row_delta != 0 && col_delta == 0 && self.move_grid_selection_by_index(row_delta, 0) {
+            // #region agent log
+            agent_log(
+                "A",
+                "tuview_scrolled.rs:move_grid_selection",
+                "moved by index",
+                serde_json::json!({
+                    "rowDelta": row_delta,
+                    "selected": self.selected_index(),
+                    "cols": self.grid_column_count(),
+                    "total": count,
+                    "metrics": self.scroll_metrics()
+                }),
+            );
+            // #endregion
             return;
         }
         if col_delta != 0 && row_delta == 0 && self.move_grid_selection_by_index(0, col_delta) {
@@ -660,7 +747,10 @@ impl TuViewScrolled {
             self.maybe_load_near_end();
             return;
         }
-        if col_delta != 0 && row_delta == 0 && self.move_grid_selection_spatial_horizontal(col_delta) {
+        if col_delta != 0
+            && row_delta == 0
+            && self.move_grid_selection_spatial_horizontal(col_delta)
+        {
             return;
         }
         let cols = self.grid_column_count();
@@ -686,7 +776,7 @@ impl TuViewScrolled {
             }
         }
         imp.selection.set_selected(next as u32);
-        self.scroll_to_selected(next as u32);
+        self.scroll_to_selected(next as u32, row_delta, col_delta);
         self.refresh_poster_focus_state();
         self.maybe_load_near_end();
     }
@@ -694,7 +784,10 @@ impl TuViewScrolled {
     fn refresh_poster_focus_state(&self) {
         let selected = self.imp().selection.selected();
         for item in self.imp().bound_items.borrow().values() {
-            if let Some(child) = item.child().and_downcast::<super::tu_list_item::TuListItem>() {
+            if let Some(child) = item
+                .child()
+                .and_downcast::<super::tu_list_item::TuListItem>()
+            {
                 child.set_poster_focused(
                     selected != gtk::INVALID_LIST_POSITION && item.position() == selected,
                 );
@@ -748,7 +841,7 @@ impl TuViewScrolled {
         }
     }
 
-    fn scroll_to_selected(&self, index: u32) {
+    fn scroll_to_selected(&self, index: u32, row_delta: i32, _col_delta: i32) {
         let imp = self.imp();
         let flags = gtk::ListScrollFlags::all();
         if imp
@@ -756,60 +849,27 @@ impl TuViewScrolled {
             .child()
             .is_some_and(|child| child.is::<gtk::GridView>())
         {
+            // #region agent log
+            if row_delta != 0 {
+                agent_log(
+                    "C",
+                    "tuview_scrolled.rs:scroll_to_selected",
+                    "grid.scroll_to only",
+                    serde_json::json!({
+                        "index": index,
+                        "rowDelta": row_delta,
+                        "total": imp.selection.n_items(),
+                        "metrics": self.scroll_metrics()
+                    }),
+                );
+            }
+            // #endregion
             imp.grid.scroll_to(index, flags, None);
-            let obj = self.clone();
-            glib::idle_add_local_once(move || obj.ensure_selected_visible());
+            if row_delta > 0 {
+                self.maybe_load_near_end();
+            }
         } else {
             imp.list.scroll_to(index, flags, None);
         }
-    }
-
-    fn ensure_selected_visible(&self) {
-        let index = self.selected_index();
-        if self.scroll_bound_item_into_viewport(index) {
-            return;
-        }
-        let row = index / self.grid_column_count().max(1) as u32;
-        self.center_grid_row(row);
-        let obj = self.clone();
-        glib::idle_add_local_once(move || {
-            if !obj.scroll_bound_item_into_viewport(index) {
-                obj.center_grid_row(index / obj.grid_column_count().max(1) as u32);
-            }
-        });
-    }
-
-    fn scroll_bound_item_into_viewport(&self, index: u32) -> bool {
-        let Some(list_item) = self.imp().bound_items.borrow().get(&index).cloned() else {
-            return false;
-        };
-        let Some(child) = list_item.child() else {
-            return false;
-        };
-        super::fix::scroll_widget_into_viewport(&child);
-        true
-    }
-
-    fn center_grid_row(&self, row: u32) {
-        let imp = self.imp();
-        let cols = self.grid_column_count().max(1) as u32;
-        let total = imp.selection.n_items();
-        if total == 0 {
-            return;
-        }
-        let total_rows = total.div_ceil(cols);
-        if row >= total_rows {
-            return;
-        }
-        let row_height = f64::from(self.estimated_item_height().max(1));
-        let row_top = f64::from(row) * row_height;
-        let adj = imp.scrolled_window.vadjustment();
-        let page = adj.page_size();
-        if page <= 0.0 {
-            return;
-        }
-        let max = (adj.upper() - page).max(0.0);
-        let target = (row_top + row_height * 0.5 - page * 0.5).clamp(0.0, max);
-        adj.set_value(target);
     }
 }

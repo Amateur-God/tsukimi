@@ -22,9 +22,9 @@ use super::{
     },
     tu_list_item::imp::PosterType,
     utils::{
+        run_time_ticks_to_label,
         tu_item_post_size,
         tu_item_video_size,
-        run_time_ticks_to_label,
     },
 };
 use crate::ui::provider::tu_item::TuItem;

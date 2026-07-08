@@ -20,6 +20,8 @@ mod imp {
 
     use crate::ui::mpv::mpvglarea::MPVGLArea;
 
+    type ScrubCallback = Box<dyn Fn(f64)>;
+
     #[derive(Default, glib::Properties)]
     #[properties(wrapper_type = super::VideoScale)]
     pub struct VideoScale {
@@ -27,7 +29,7 @@ mod imp {
         pub player: glib::WeakRef<MPVGLArea>,
 
         pub is_dragging: Cell<bool>,
-        pub scrub_callback: RefCell<Option<Box<dyn Fn(f64)>>>,
+        pub scrub_callback: RefCell<Option<ScrubCallback>>,
         pub scrub_finished_callback: RefCell<Option<Box<dyn Fn()>>>,
     }
 

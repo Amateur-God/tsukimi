@@ -1,5 +1,6 @@
+#![allow(deprecated)]
+
 use adw::prelude::*;
-use gtk::prelude::*;
 
 use super::{
     actions::InputAction,
@@ -70,10 +71,7 @@ impl SettingsNavigator {
     }
 
     fn handle_preferences(
-        &self,
-        prefs: &adw::PreferencesWindow,
-        pages: &[adw::PreferencesPage],
-        action: InputAction,
+        &self, prefs: &adw::PreferencesWindow, pages: &[adw::PreferencesPage], action: InputAction,
     ) -> bool {
         let prefs_widget = prefs.clone().upcast::<gtk::Widget>();
         let tab_count = pages.len() as u32;
@@ -142,10 +140,7 @@ impl SettingsNavigator {
     }
 
     fn switch_tab(
-        &self,
-        prefs: &adw::PreferencesWindow,
-        pages: &[adw::PreferencesPage],
-        tab_index: u32,
+        &self, prefs: &adw::PreferencesWindow, pages: &[adw::PreferencesPage], tab_index: u32,
     ) {
         popover_navigator::popdown_visible_popover(&prefs.clone().upcast::<gtk::Widget>());
         self.tab_index.set(tab_index);
@@ -162,10 +157,7 @@ impl SettingsNavigator {
     }
 
     fn handle_rows_only(
-        &self,
-        rows: &[gtk::Widget],
-        action: InputAction,
-        allow_tab_switch: bool,
+        &self, rows: &[gtk::Widget], action: InputAction, allow_tab_switch: bool,
         on_back: impl FnOnce(),
     ) -> bool {
         if rows.is_empty() {
@@ -271,10 +263,7 @@ impl SettingsNavigator {
     }
 
     pub fn handle_widgets(
-        &self,
-        widgets: &[gtk::Widget],
-        action: InputAction,
-        on_back: impl FnOnce(),
+        &self, widgets: &[gtk::Widget], action: InputAction, on_back: impl FnOnce(),
     ) -> bool {
         self.handle_rows_only(widgets, action, false, on_back)
     }
@@ -349,9 +338,7 @@ impl SettingsNavigator {
 }
 
 fn should_grab_row_focus(row: &gtk::Widget) -> bool {
-    !row.is::<adw::EntryRow>()
-        && !row.is::<adw::PasswordEntryRow>()
-        && !row.is::<adw::SpinRow>()
+    !row.is::<adw::EntryRow>() && !row.is::<adw::PasswordEntryRow>() && !row.is::<adw::SpinRow>()
 }
 
 fn row_suffix_buttons(row: &gtk::Widget) -> Vec<gtk::Button> {
@@ -410,9 +397,7 @@ fn find_view_stack(widget: &gtk::Widget) -> Option<adw::ViewStack> {
 }
 
 fn rows_for_page(
-    prefs: &adw::PreferencesWindow,
-    pages: &[adw::PreferencesPage],
-    tab_index: u32,
+    prefs: &adw::PreferencesWindow, pages: &[adw::PreferencesPage], tab_index: u32,
 ) -> Vec<gtk::Widget> {
     let page = prefs
         .visible_page()

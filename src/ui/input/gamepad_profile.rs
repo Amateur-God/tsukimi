@@ -11,9 +11,7 @@ pub enum GamepadProfile {
 impl GamepadProfile {
     pub fn detect(name: &str) -> Self {
         let lower = name.to_lowercase();
-        if lower.contains("xbox")
-            || lower.contains("microsoft")
-            || lower.contains("360 controller")
+        if lower.contains("xbox") || lower.contains("microsoft") || lower.contains("360 controller")
         {
             Self::Xbox
         } else if lower.contains("sony")
@@ -24,7 +22,9 @@ impl GamepadProfile {
             Self::PlayStation
         } else if lower.contains("steam deck") || lower.contains("steam controller") {
             Self::SteamDeck
-        } else if lower.contains("nintendo") || lower.contains("pro controller") || lower.contains("joy-con")
+        } else if lower.contains("nintendo")
+            || lower.contains("pro controller")
+            || lower.contains("joy-con")
         {
             Self::Nintendo
         } else {

@@ -38,7 +38,12 @@ impl Window {
         if self.imp().media_viewer.get().is_revealed() {
             return NavigationContext::MediaViewer;
         }
-        if self.imp().active_settings.borrow().as_ref().is_some_and(|s| s.is_visible())
+        if self
+            .imp()
+            .active_settings
+            .borrow()
+            .as_ref()
+            .is_some_and(|s| s.is_visible())
             || self
                 .imp()
                 .active_account_dialog
@@ -51,10 +56,16 @@ impl Window {
 
         if self.now_page_tag().as_deref() != Some("mainpage") {
             if let Some(page) = self.imp().mainview.visible_page() {
-                if page.downcast_ref::<crate::ui::widgets::item::ItemPage>().is_some() {
+                if page
+                    .downcast_ref::<crate::ui::widgets::item::ItemPage>()
+                    .is_some()
+                {
                     return NavigationContext::Pushed(PushedPageKind::Item);
                 }
-                if page.downcast_ref::<crate::ui::widgets::single_grid::SingleGrid>().is_some() {
+                if page
+                    .downcast_ref::<crate::ui::widgets::single_grid::SingleGrid>()
+                    .is_some()
+                {
                     return NavigationContext::Pushed(PushedPageKind::Grid);
                 }
             }

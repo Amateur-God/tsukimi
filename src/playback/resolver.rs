@@ -41,9 +41,9 @@ pub fn detect_default_audio_language(streams: &[MediaStream]) -> Option<String> 
 
     let preferred = SETTINGS.mpv_audio_preferred_lang_str();
     if !preferred.is_empty()
-        && let Some(stream) = audio_streams.iter().find(|stream| {
-            rules::language_matches(stream.language.as_deref(), &preferred)
-        })
+        && let Some(stream) = audio_streams
+            .iter()
+            .find(|stream| rules::language_matches(stream.language.as_deref(), &preferred))
     {
         return stream.language.clone();
     }
@@ -74,19 +74,11 @@ fn legacy_fallback() -> ResolvedPlaybackTracks {
     ResolvedPlaybackTracks {
         prefer_audio_lang: {
             let lang = SETTINGS.mpv_audio_preferred_lang_str();
-            if lang.is_empty() {
-                None
-            } else {
-                Some(lang)
-            }
+            if lang.is_empty() { None } else { Some(lang) }
         },
         prefer_subtitle_lang: {
             let lang = SETTINGS.mpv_subtitle_preferred_lang_str();
-            if lang.is_empty() {
-                None
-            } else {
-                Some(lang)
-            }
+            if lang.is_empty() { None } else { Some(lang) }
         },
         forced_subtitles_only: false,
         subtitles_off: SETTINGS.mpv_subtitle_preferred_lang_str().is_empty(),
@@ -137,8 +129,7 @@ fn resolved_from_outcome(outcome: &PlaybackOutcome) -> ResolvedPlaybackTracks {
 }
 
 pub fn pick_subtitle_stream<'a>(
-    streams: &'a [MediaStream],
-    resolved: &ResolvedPlaybackTracks,
+    streams: &'a [MediaStream], resolved: &ResolvedPlaybackTracks,
 ) -> Option<&'a MediaStream> {
     if resolved.subtitles_off {
         return None;
@@ -153,22 +144,20 @@ pub fn pick_subtitle_stream<'a>(
         return None;
     }
 
-    if resolved.forced_subtitles_only {
-        if let Some(stream) = subtitle_streams
+    if resolved.forced_subtitles_only
+        && let Some(stream) = subtitle_streams
             .iter()
             .find(|s| s.is_forced.unwrap_or(false))
-        {
-            return Some(*stream);
-        }
+    {
+        return Some(*stream);
     }
 
-    if let Some(lang) = resolved.prefer_subtitle_lang.as_deref() {
-        if let Some(stream) = subtitle_streams
+    if let Some(lang) = resolved.prefer_subtitle_lang.as_deref()
+        && let Some(stream) = subtitle_streams
             .iter()
             .find(|s| rules::language_matches(stream_language(s), lang))
-        {
-            return Some(*stream);
-        }
+    {
+        return Some(*stream);
     }
 
     let lang_list: Vec<(i64, String)> = subtitle_streams
@@ -197,4 +186,3 @@ fn stream_language(stream: &MediaStream) -> Option<&str> {
         .as_deref()
         .or(stream.display_language.as_deref())
 }
-

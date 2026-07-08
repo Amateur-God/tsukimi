@@ -1,5 +1,7 @@
-use gtk::prelude::*;
-use gtk::glib::subclass::types::ObjectSubclassIsExt;
+use gtk::{
+    glib::subclass::types::ObjectSubclassIsExt,
+    prelude::*,
+};
 
 use super::{
     actions::InputAction,
@@ -7,6 +9,7 @@ use super::{
     grid_navigator::GridNavigator,
 };
 use crate::{
+    Window,
     tv::set_tv_focused,
     ui::widgets::{
         list::ListPage,
@@ -15,7 +18,6 @@ use crate::{
         other::OtherPage,
         server_panel::ServerPanel,
     },
-    Window,
 };
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ListZone {
@@ -100,8 +102,7 @@ impl PushedNavigator {
     }
 
     fn handle_album(&self, window: &Window, page: &AlbumPage, action: InputAction) -> bool {
-        self.album_focus
-            .register_rows(page.focus_hortu_rows());
+        self.album_focus.register_rows(page.focus_hortu_rows());
 
         match action {
             InputAction::Back => {
@@ -109,8 +110,10 @@ impl PushedNavigator {
                 true
             }
             InputAction::Menu => {
-                window.set_sidebar_panel_visible(!window.tv_sidebar_collapsed()
-                    || !window.imp().split_view.get().shows_sidebar());
+                window.set_sidebar_panel_visible(
+                    !window.tv_sidebar_collapsed()
+                        || !window.imp().split_view.get().shows_sidebar(),
+                );
                 true
             }
             InputAction::NavigateDown => self.navigate_album_zone(page, 1),
@@ -179,7 +182,9 @@ impl PushedNavigator {
                 page.activate_focused_song();
                 true
             }
-            AlbumZone::Rows => self.album_focus.handle_rows_only(window, InputAction::Activate),
+            AlbumZone::Rows => self
+                .album_focus
+                .handle_rows_only(window, InputAction::Activate),
         }
     }
 
@@ -198,10 +203,10 @@ impl PushedNavigator {
     }
 
     fn handle_list(&self, window: &Window, page: &ListPage, action: InputAction) -> bool {
-        if self.list_zone.get() == ListZone::Grid {
-            if let Some(grid) = page.visible_grid() {
-                grid.tuview_scrolled().ensure_selection();
-            }
+        if self.list_zone.get() == ListZone::Grid
+            && let Some(grid) = page.visible_grid()
+        {
+            grid.tuview_scrolled().ensure_selection();
         }
 
         match action {
@@ -210,18 +215,20 @@ impl PushedNavigator {
                 true
             }
             InputAction::Menu => {
-                window.set_sidebar_panel_visible(!window.tv_sidebar_collapsed()
-                    || !window.imp().split_view.get().shows_sidebar());
+                window.set_sidebar_panel_visible(
+                    !window.tv_sidebar_collapsed()
+                        || !window.imp().split_view.get().shows_sidebar(),
+                );
                 true
             }
             InputAction::NavigateUp => {
-                if self.list_zone.get() == ListZone::Grid {
-                    if let Some(grid) = page.visible_grid() {
-                        if grid.tuview_scrolled().is_at_top_row() {
-                            return self.navigate_list_zone(page, -1);
-                        }
-                        return self.grid_navigator.handle(window, &grid, action);
+                if self.list_zone.get() == ListZone::Grid
+                    && let Some(grid) = page.visible_grid()
+                {
+                    if grid.tuview_scrolled().is_at_top_row() {
+                        return self.navigate_list_zone(page, -1);
                     }
+                    return self.grid_navigator.handle(window, &grid, action);
                 }
                 self.navigate_list_zone(page, -1)
             }
@@ -314,12 +321,13 @@ impl PushedNavigator {
                 self.apply_list_focus(page);
                 true
             }
-            ListZone::Toolbar => page.visible_grid().is_some_and(|grid| {
-                grid.activate_toolbar_index(self.list_toolbar_index.get())
-            }),
-            ListZone::Grid => page
+            ListZone::Toolbar => page
                 .visible_grid()
-                .is_some_and(|grid| self.grid_navigator.handle(window, &grid, InputAction::Activate)),
+                .is_some_and(|grid| grid.activate_toolbar_index(self.list_toolbar_index.get())),
+            ListZone::Grid => page.visible_grid().is_some_and(|grid| {
+                self.grid_navigator
+                    .handle(window, &grid, InputAction::Activate)
+            }),
         }
     }
 
@@ -348,8 +356,7 @@ impl PushedNavigator {
     }
 
     fn handle_other(&self, window: &Window, page: &OtherPage, action: InputAction) -> bool {
-        self.other_focus
-            .register_rows(page.focus_hortu_rows());
+        self.other_focus.register_rows(page.focus_hortu_rows());
 
         match action {
             InputAction::Back => {
@@ -357,8 +364,10 @@ impl PushedNavigator {
                 true
             }
             InputAction::Menu => {
-                window.set_sidebar_panel_visible(!window.tv_sidebar_collapsed()
-                    || !window.imp().split_view.get().shows_sidebar());
+                window.set_sidebar_panel_visible(
+                    !window.tv_sidebar_collapsed()
+                        || !window.imp().split_view.get().shows_sidebar(),
+                );
                 true
             }
             InputAction::NavigateDown => self.navigate_other_zone(page, 1),
@@ -438,7 +447,9 @@ impl PushedNavigator {
                 }
                 true
             }
-            OtherZone::Rows => self.other_focus.handle_rows_only(window, InputAction::Activate),
+            OtherZone::Rows => self
+                .other_focus
+                .handle_rows_only(window, InputAction::Activate),
             OtherZone::Episodes => {
                 page.activate_focused_episode();
                 true
@@ -474,12 +485,18 @@ impl PushedNavigator {
             }
             InputAction::NavigateDown => self.navigate_server(&groups, 1),
             InputAction::NavigateUp => self.navigate_server(&groups, -1),
-            InputAction::Activate => page.activate_focused_row(&groups, *self.server_group_index.borrow(), *self.server_row_index.borrow()),
+            InputAction::Activate => page.activate_focused_row(
+                &groups,
+                *self.server_group_index.borrow(),
+                *self.server_row_index.borrow(),
+            ),
             _ => false,
         }
     }
 
-    fn navigate_server(&self, groups: &[crate::ui::widgets::server_panel::ServerFocusGroup], delta: i32) -> bool {
+    fn navigate_server(
+        &self, groups: &[crate::ui::widgets::server_panel::ServerFocusGroup], delta: i32,
+    ) -> bool {
         let group_idx = *self.server_group_index.borrow();
         let row_idx = *self.server_row_index.borrow();
         let Some(group) = groups.get(group_idx) else {

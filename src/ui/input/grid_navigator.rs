@@ -2,8 +2,8 @@ use gtk::glib::subclass::types::ObjectSubclassIsExt;
 
 use super::actions::InputAction;
 use crate::{
-    ui::widgets::single_grid::SingleGrid,
     Window,
+    ui::widgets::single_grid::SingleGrid,
 };
 
 pub struct GridNavigator;
@@ -38,8 +38,10 @@ impl GridNavigator {
                 true
             }
             InputAction::Menu => {
-                window.set_sidebar_panel_visible(!window.tv_sidebar_collapsed()
-                    || !window.imp().split_view.get().shows_sidebar());
+                window.set_sidebar_panel_visible(
+                    !window.tv_sidebar_collapsed()
+                        || !window.imp().split_view.get().shows_sidebar(),
+                );
                 true
             }
             InputAction::PageScrollLeft => {

@@ -176,22 +176,23 @@ mod imp {
                     #[weak(rename_to = obj)]
                     self.obj(),
                     move |widget, tu_obj: &TuObject| {
-                    let tu_item = widget
-                        .downcast_ref::<TuListItem>()
-                        .expect("LazyDiffView row must be a TuListItem");
-                    let key = tu_obj.item().key();
-                    let selected = obj
-                        .imp()
-                        .selected_index
-                        .get()
-                        .and_then(|index| obj.imp().diffview.key_at(index))
-                        .as_deref()
-                        == Some(key.as_str());
-                    if tu_item.item().key() != key {
-                        tu_item.set_item(tu_obj.item());
+                        let tu_item = widget
+                            .downcast_ref::<TuListItem>()
+                            .expect("LazyDiffView row must be a TuListItem");
+                        let key = tu_obj.item().key();
+                        let selected = obj
+                            .imp()
+                            .selected_index
+                            .get()
+                            .and_then(|index| obj.imp().diffview.key_at(index))
+                            .as_deref()
+                            == Some(key.as_str());
+                        if tu_item.item().key() != key {
+                            tu_item.set_item(tu_obj.item());
+                        }
+                        tu_item.set_poster_focused(selected);
                     }
-                    tu_item.set_poster_focused(selected);
-                }),
+                ),
             );
 
             self.obj().connect_scroll_controls();
@@ -435,7 +436,10 @@ impl HortuScrolled {
         if index >= items {
             return;
         }
-        if let Some(key) = imp.selected_index.get().and_then(|idx| imp.diffview.key_at(idx))
+        if let Some(key) = imp
+            .selected_index
+            .get()
+            .and_then(|idx| imp.diffview.key_at(idx))
             && let Some(obj) = imp.item_cache.borrow().get(&key)
         {
             obj.item().activate(window);

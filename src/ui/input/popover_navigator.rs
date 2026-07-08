@@ -6,13 +6,12 @@ use gtk::{
     gio::prelude::MenuModelExt,
     glib,
     glib::subclass::types::ObjectSubclassIsExt,
-    prelude::*,
 };
 
 use super::actions::InputAction;
 use crate::{
-    tv::set_tv_focused,
     Window,
+    tv::set_tv_focused,
 };
 
 thread_local! {
@@ -25,15 +24,17 @@ struct FlatMenuEntry {
 }
 
 pub fn handle(window: &Window, action: InputAction) -> bool {
-    if let Some(settings) = window.imp().active_settings.borrow().clone() {
-        if settings.is_visible() && handle_widget_tree(settings.upcast_ref(), action) {
-            return true;
-        }
+    if let Some(settings) = window.imp().active_settings.borrow().clone()
+        && settings.is_visible()
+        && handle_widget_tree(settings.upcast_ref(), action)
+    {
+        return true;
     }
-    if let Some(account) = window.imp().active_account_dialog.borrow().clone() {
-        if account.is_visible() && handle_widget_tree(account.upcast_ref(), action) {
-            return true;
-        }
+    if let Some(account) = window.imp().active_account_dialog.borrow().clone()
+        && account.is_visible()
+        && handle_widget_tree(account.upcast_ref(), action)
+    {
+        return true;
     }
     if handle_widget_tree(window.upcast_ref(), action) {
         return true;
@@ -69,19 +70,17 @@ fn find_open_menu_popover(root: &gtk::Widget) -> Option<gtk::Popover> {
     let mut stack = vec![root.clone()];
     let mut menu_popover = None;
     while let Some(widget) = stack.pop() {
-        if let Ok(menu) = widget.clone().downcast::<gtk::PopoverMenu>() {
-            if menu.is_visible() {
-                menu_popover = Some(menu.upcast());
-            }
+        if let Ok(menu) = widget.clone().downcast::<gtk::PopoverMenu>()
+            && menu.is_visible()
+        {
+            menu_popover = Some(menu.upcast());
         }
-        if let Ok(button) = widget.clone().downcast::<gtk::MenuButton>() {
-            if button.is_active() {
-                if let Some(popover) = button.popover() {
-                    if popover.is_visible() {
-                        return Some(popover);
-                    }
-                }
-            }
+        if let Ok(button) = widget.clone().downcast::<gtk::MenuButton>()
+            && button.is_active()
+            && let Some(popover) = button.popover()
+            && popover.is_visible()
+        {
+            return Some(popover);
         }
         let mut child = widget.first_child();
         while let Some(next) = child {
@@ -106,10 +105,10 @@ fn find_visible_popover(root: &gtk::Widget) -> Option<gtk::Popover> {
     let mut stack = vec![root.clone()];
     let mut found = None;
     while let Some(widget) = stack.pop() {
-        if let Ok(popover) = widget.clone().downcast::<gtk::Popover>() {
-            if popover.is_visible() {
-                found = Some(popover);
-            }
+        if let Ok(popover) = widget.clone().downcast::<gtk::Popover>()
+            && popover.is_visible()
+        {
+            found = Some(popover);
         }
         let mut child = widget.first_child();
         while let Some(next) = child {
@@ -159,10 +158,7 @@ fn menu_anchor(popover: &gtk::Popover) -> gtk::Widget {
         .unwrap_or_else(|| popover.upcast_ref::<gtk::Widget>().clone())
 }
 
-fn append_menu_entries(
-    model: &gio::MenuModel,
-    entries: &mut Vec<FlatMenuEntry>,
-) {
+fn append_menu_entries(model: &gio::MenuModel, entries: &mut Vec<FlatMenuEntry>) {
     for i in 0..model.n_items() {
         if let Some(submodel) = model.item_link(i, gio::MENU_LINK_SECTION) {
             append_menu_entries(&submodel, entries);
@@ -231,9 +227,7 @@ fn clear_listview_tv_focus(listview: &gtk::ListView) {
 }
 
 fn handle_gmenu_popover(
-    popover: &gtk::PopoverMenu,
-    action: InputAction,
-    on_back: impl FnOnce(),
+    popover: &gtk::PopoverMenu, action: InputAction, on_back: impl FnOnce(),
 ) -> bool {
     let Some(model) = popover.menu_model() else {
         return false;
@@ -283,10 +277,10 @@ fn handle_gmenu_popover(
 }
 
 fn handle_popover(popover: &gtk::Popover, action: InputAction) -> bool {
-    if let Ok(menu_popover) = popover.clone().downcast::<gtk::PopoverMenu>() {
-        if menu_popover.menu_model().is_some() {
-            return handle_gmenu_popover(&menu_popover, action, || popover.popdown());
-        }
+    if let Ok(menu_popover) = popover.clone().downcast::<gtk::PopoverMenu>()
+        && menu_popover.menu_model().is_some()
+    {
+        return handle_gmenu_popover(&menu_popover, action, || popover.popdown());
     }
 
     let content = popover
@@ -302,25 +296,21 @@ fn handle_popover(popover: &gtk::Popover, action: InputAction) -> bool {
     }
 
     let widgets = super::dialog_navigator::collect_focusable_widgets(&content);
-    super::settings_navigator::SettingsNavigator::default().handle_widgets(
-        &widgets,
-        action,
-        || popover.popdown(),
-    )
+    super::settings_navigator::SettingsNavigator::default()
+        .handle_widgets(&widgets, action, || popover.popdown())
 }
 
 fn find_popover_listview(root: &gtk::Widget) -> Option<gtk::ListView> {
     let mut stack = vec![root.clone()];
     let mut found = None;
     while let Some(widget) = stack.pop() {
-        if let Ok(listview) = widget.clone().downcast::<gtk::ListView>() {
-            if listview
+        if let Ok(listview) = widget.clone().downcast::<gtk::ListView>()
+            && listview
                 .model()
                 .and_then(|model| model.downcast::<gtk::SingleSelection>().ok())
                 .is_some_and(|sel| sel.n_items() > 0)
-            {
-                found = Some(listview);
-            }
+        {
+            found = Some(listview);
         }
         let mut child = widget.first_child();
         while let Some(next) = child {
@@ -335,10 +325,10 @@ fn find_popover_listbox(root: &gtk::Widget) -> Option<gtk::ListBox> {
     let mut stack = vec![root.clone()];
     let mut found = None;
     while let Some(widget) = stack.pop() {
-        if let Ok(listbox) = widget.clone().downcast::<gtk::ListBox>() {
-            if !listbox_rows(&listbox).is_empty() {
-                found = Some(listbox);
-            }
+        if let Ok(listbox) = widget.clone().downcast::<gtk::ListBox>()
+            && !listbox_rows(&listbox).is_empty()
+        {
+            found = Some(listbox);
         }
         let mut child = widget.first_child();
         while let Some(next) = child {
@@ -354,24 +344,19 @@ fn listbox_rows(listbox: &gtk::ListBox) -> Vec<gtk::ListBoxRow> {
     let mut child = listbox.first_child();
     while let Some(widget) = child {
         let next = widget.next_sibling();
-        if let Ok(row) = widget.downcast::<gtk::ListBoxRow>() {
-            if row.is_visible()
-                && row.is_sensitive()
-                && row.parent().as_ref() == Some(listbox.upcast_ref())
-            {
-                rows.push(row);
-            }
+        if let Ok(row) = widget.downcast::<gtk::ListBoxRow>()
+            && row.is_visible()
+            && row.is_sensitive()
+            && row.parent().as_ref() == Some(listbox.upcast_ref())
+        {
+            rows.push(row);
         }
         child = next;
     }
     rows
 }
 
-fn handle_listbox(
-    listbox: &gtk::ListBox,
-    action: InputAction,
-    on_back: impl FnOnce(),
-) -> bool {
+fn handle_listbox(listbox: &gtk::ListBox, action: InputAction, on_back: impl FnOnce()) -> bool {
     let rows = listbox_rows(listbox);
     if rows.is_empty() {
         return false;
@@ -428,11 +413,7 @@ fn select_listbox_row(listbox: &gtk::ListBox, rows: &[gtk::ListBoxRow], index: u
     set_tv_focused(row, true);
 }
 
-fn handle_listview(
-    listview: gtk::ListView,
-    action: InputAction,
-    on_back: impl FnOnce(),
-) -> bool {
+fn handle_listview(listview: gtk::ListView, action: InputAction, on_back: impl FnOnce()) -> bool {
     let Some(selection) = listview
         .model()
         .and_then(|model| model.downcast::<gtk::SingleSelection>().ok())

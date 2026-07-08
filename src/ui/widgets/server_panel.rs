@@ -375,10 +375,7 @@ impl ServerPanel {
     }
 
     pub fn activate_focused_row(
-        &self,
-        groups: &[ServerFocusGroup],
-        group_index: usize,
-        row_index: usize,
+        &self, groups: &[ServerFocusGroup], group_index: usize, row_index: usize,
     ) -> bool {
         let Some(group) = groups.get(group_index) else {
             return false;
@@ -386,14 +383,13 @@ impl ServerPanel {
         let Some(row) = group.rows.get(row_index) else {
             return false;
         };
-        if let Ok(action_row) = row.clone().downcast::<adw::ActionRow>() {
-            if let Some(button) = action_row
+        if let Ok(action_row) = row.clone().downcast::<adw::ActionRow>()
+            && let Some(button) = action_row
                 .last_child()
                 .and_then(|child| child.downcast::<gtk::Button>().ok())
-            {
-                button.emit_clicked();
-                return true;
-            }
+        {
+            button.emit_clicked();
+            return true;
         }
         false
     }

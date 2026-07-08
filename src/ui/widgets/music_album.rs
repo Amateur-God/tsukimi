@@ -444,14 +444,27 @@ impl AlbumPage {
 
     pub fn clear_action_focus(&self) {
         crate::tv::set_tv_focused(&self.imp().play_button.get(), false);
-        crate::tv::set_tv_focused(&self.imp().actionbox.favourite_button().upcast::<gtk::Widget>(), false);
-        crate::tv::set_tv_focused(&self.imp().actionbox.menu_button().upcast::<gtk::Widget>(), false);
+        crate::tv::set_tv_focused(
+            &self
+                .imp()
+                .actionbox
+                .favourite_button()
+                .upcast::<gtk::Widget>(),
+            false,
+        );
+        crate::tv::set_tv_focused(
+            &self.imp().actionbox.menu_button().upcast::<gtk::Widget>(),
+            false,
+        );
     }
 
     pub fn navigate_actions(&self, delta: i32) {
         let widgets = [
             self.imp().play_button.get().upcast::<gtk::Widget>(),
-            self.imp().actionbox.favourite_button().upcast::<gtk::Widget>(),
+            self.imp()
+                .actionbox
+                .favourite_button()
+                .upcast::<gtk::Widget>(),
             self.imp().actionbox.menu_button().upcast::<gtk::Widget>(),
         ];
         let current = widgets
@@ -466,7 +479,10 @@ impl AlbumPage {
     pub fn activate_focused_action(&self) {
         let widgets = [
             self.imp().play_button.get().upcast::<gtk::Widget>(),
-            self.imp().actionbox.favourite_button().upcast::<gtk::Widget>(),
+            self.imp()
+                .actionbox
+                .favourite_button()
+                .upcast::<gtk::Widget>(),
             self.imp().actionbox.menu_button().upcast::<gtk::Widget>(),
         ];
         let index = widgets

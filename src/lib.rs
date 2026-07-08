@@ -20,8 +20,8 @@ mod utils;
 pub mod client;
 
 pub use arg::Args;
-pub use config::*;
 use clap::Parser;
+pub use config::*;
 use gettextrs::*;
 use gtk::prelude::*;
 
@@ -42,9 +42,12 @@ pub const CLIENT_ID: &str = "Tsukimi";
 const APP_RESOURCE_PATH: &str = "/moe/tsuna/tsukimi";
 const GRESOURCE_FILE: &str = "tsukimi.gresource";
 
+/// Runtime override for local dev (`just dev`, distrobox). Production builds use
+/// compile-time `LOCALEDIR`; dev runs set `TSUKIMI_LOCALEDIR` because distrobox
+/// compiles with `/run/host/...` paths that are invalid when launching on the host.
 fn localizedir() -> &'static str {
     static RUNTIME: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
-    *RUNTIME.get_or_init(|| {
+    RUNTIME.get_or_init(|| {
         env::var("TSUKIMI_LOCALEDIR")
             .map(|path| Box::leak(path.into_boxed_str()) as &str)
             .unwrap_or(LOCALEDIR)

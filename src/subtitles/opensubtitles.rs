@@ -81,10 +81,7 @@ impl SubtitleProvider for OpenSubtitlesProvider {
     }
 
     async fn search(
-        &self,
-        query: &str,
-        imdb_id: Option<&str>,
-        language: &str,
+        &self, query: &str, imdb_id: Option<&str>, language: &str,
     ) -> anyhow::Result<Vec<SubtitleResult>> {
         let api_key = SETTINGS.opensubtitles_api_key();
         if api_key.is_empty() {
@@ -107,10 +104,7 @@ impl SubtitleProvider for OpenSubtitlesProvider {
 
         let response = request.send().await?;
         if !response.status().is_success() {
-            anyhow::bail!(
-                "OpenSubtitles search failed: {}",
-                response.status()
-            );
+            anyhow::bail!("OpenSubtitles search failed: {}", response.status());
         }
 
         let payload: SearchResponse = response.json().await?;
@@ -147,10 +141,7 @@ impl SubtitleProvider for OpenSubtitlesProvider {
             .send()
             .await?;
         if !response.status().is_success() {
-            anyhow::bail!(
-                "OpenSubtitles download failed: {}",
-                response.status()
-            );
+            anyhow::bail!("OpenSubtitles download failed: {}", response.status());
         }
         let payload: DownloadResponse = response.json().await?;
         let sub_bytes = client.get(payload.link).send().await?.bytes().await?;

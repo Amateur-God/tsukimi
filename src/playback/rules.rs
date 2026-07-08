@@ -55,9 +55,7 @@ pub enum AudioOutcome {
     #[serde(rename = "no_override")]
     NoOverride,
     #[serde(rename = "prefer_language")]
-    PreferLanguage {
-        language: String,
-    },
+    PreferLanguage { language: String },
     #[serde(rename = "original")]
     Original,
 }
@@ -79,9 +77,7 @@ pub enum SubtitleOutcome {
         language: String,
     },
     #[serde(rename = "prefer_language")]
-    PreferLanguage {
-        language: String,
-    },
+    PreferLanguage { language: String },
 }
 
 pub struct PlaybackRules;
@@ -114,12 +110,8 @@ impl PlaybackRules {
 fn condition_matches(condition: &RuleCondition, audio_language: &str) -> bool {
     match &condition.audio_language {
         LanguageCondition::Any => true,
-        LanguageCondition::Equals(expected) => {
-            language_matches(Some(audio_language), expected)
-        }
-        LanguageCondition::NotEquals(expected) => {
-            !language_matches(Some(audio_language), expected)
-        }
+        LanguageCondition::Equals(expected) => language_matches(Some(audio_language), expected),
+        LanguageCondition::NotEquals(expected) => !language_matches(Some(audio_language), expected),
     }
 }
 

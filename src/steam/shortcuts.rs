@@ -31,12 +31,7 @@ pub fn find_steam_root() -> Option<PathBuf> {
         dirs::home_dir().map(|h| h.join(".local/share/Steam")),
         dirs::home_dir().map(|h| h.join(".var/app/com.valvesoftware.Steam/data/Steam")),
     ];
-    for path in candidates.into_iter().flatten() {
-        if path.is_dir() {
-            return Some(path);
-        }
-    }
-    None
+    candidates.into_iter().flatten().find(|path| path.is_dir())
 }
 
 fn find_active_user_id(steam_root: &Path) -> Option<String> {
@@ -47,7 +42,12 @@ fn find_active_user_id(steam_root: &Path) -> Option<String> {
         let line = line.trim();
         if line.starts_with('"') && line.ends_with('{') {
             in_user = true;
-            most_recent_id = Some(line.trim_matches('"').trim_end_matches('{').trim().to_string());
+            most_recent_id = Some(
+                line.trim_matches('"')
+                    .trim_end_matches('{')
+                    .trim()
+                    .to_string(),
+            );
         }
         if in_user && line.contains("\"MostRecent\"") && line.contains("\"1\"") {
             return most_recent_id;
@@ -97,8 +97,7 @@ pub fn add_tsukimi_to_steam(window: &crate::Window) -> Result<(), String> {
     let shortcuts_path = steam_root.join(format!("userdata/{user_id}/config/shortcuts.vdf"));
     let mut owned: Vec<ShortcutOwned> = if shortcuts_path.exists() {
         let content = fs::read(&shortcuts_path).map_err(|e| e.to_string())?;
-        parse_shortcuts(content.as_slice())
-            .map_err(|e| e)?
+        parse_shortcuts(content.as_slice())?
             .into_iter()
             .map(|s| s.to_owned())
             .collect()
@@ -117,10 +116,7 @@ pub fn add_tsukimi_to_steam(window: &crate::Window) -> Result<(), String> {
         "--tv-mode --fullscreen",
     );
     let mut owned_shortcut = new_shortcut.to_owned();
-    owned_shortcut.tags = vec![
-        "Installed".to_string(),
-        "Ready to Play".to_string(),
-    ];
+    owned_shortcut.tags = vec!["Installed".to_string(), "Ready to Play".to_string()];
     owned.push(owned_shortcut);
 
     let borrowed: Vec<Shortcut> = owned.iter().map(|s| s.borrow()).collect();

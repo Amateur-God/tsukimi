@@ -23,10 +23,7 @@ pub trait SubtitleProvider: Send + Sync {
         self.is_enabled()
     }
     async fn search(
-        &self,
-        query: &str,
-        imdb_id: Option<&str>,
-        language: &str,
+        &self, query: &str, imdb_id: Option<&str>, language: &str,
     ) -> anyhow::Result<Vec<SubtitleResult>>;
     async fn download(&self, result: &SubtitleResult) -> anyhow::Result<PathBuf>;
 }
@@ -51,14 +48,6 @@ impl SubtitleProviderRegistry {
         }
     }
 
-    pub fn enabled_providers(&self) -> Vec<&dyn SubtitleProvider> {
-        self.providers
-            .iter()
-            .filter(|p| p.is_enabled())
-            .map(|p| p.as_ref())
-            .collect()
-    }
-
     pub fn searchable_providers(&self) -> Vec<&dyn SubtitleProvider> {
         self.providers
             .iter()
@@ -68,10 +57,7 @@ impl SubtitleProviderRegistry {
     }
 
     pub async fn search_all(
-        &self,
-        query: &str,
-        imdb_id: Option<&str>,
-        language: &str,
+        &self, query: &str, imdb_id: Option<&str>, language: &str,
     ) -> Vec<SubtitleResult> {
         let providers = self.searchable_providers();
         if providers.is_empty() {

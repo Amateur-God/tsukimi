@@ -1,24 +1,19 @@
 use gtk::prelude::*;
 
 use crate::{
-    ui::widgets::liked::LikedPage,
-    ui::input::{
-        actions::InputAction,
-        focus_manager::FocusManager,
-    },
     Window,
+    ui::{
+        input::{
+            actions::InputAction,
+            focus_manager::FocusManager,
+        },
+        widgets::liked::LikedPage,
+    },
 };
 
+#[derive(Default)]
 pub struct LikedNavigator {
     focus: FocusManager,
-}
-
-impl Default for LikedNavigator {
-    fn default() -> Self {
-        Self {
-            focus: FocusManager::default(),
-        }
-    }
 }
 
 impl LikedNavigator {

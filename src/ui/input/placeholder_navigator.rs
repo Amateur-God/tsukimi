@@ -4,9 +4,9 @@ use gtk::prelude::*;
 
 use super::actions::InputAction;
 use crate::{
+    Window,
     tv::set_tv_focused,
     ui::widgets::server_action_row::ServerActionRow,
-    Window,
 };
 
 pub struct PlaceholderNavigator {
@@ -49,10 +49,7 @@ impl PlaceholderNavigator {
     }
 
     pub fn handle(
-        &self,
-        window: &Window,
-        login_stack: &gtk::Stack,
-        listbox: &gtk::ListBox,
+        &self, window: &Window, login_stack: &gtk::Stack, listbox: &gtk::ListBox,
         action: InputAction,
     ) -> bool {
         if login_stack.visible_child_name().as_deref() == Some("no-server") {
@@ -94,14 +91,14 @@ impl PlaceholderNavigator {
                 true
             }
             InputAction::NavigateRight => {
-                if let Some(row) = listbox.row_at_index(index as i32) {
-                    if let Ok(server_row) = row.downcast::<ServerActionRow>() {
-                        let max_col = server_row.tv_focus_widgets().len().saturating_sub(1) as u32;
-                        column = (column + 1).min(max_col);
-                        *self.selected_column.borrow_mut() = column;
-                        server_row.set_tv_column_focus(column as usize);
-                        return true;
-                    }
+                if let Some(row) = listbox.row_at_index(index as i32)
+                    && let Ok(server_row) = row.downcast::<ServerActionRow>()
+                {
+                    let max_col = server_row.tv_focus_widgets().len().saturating_sub(1) as u32;
+                    column = (column + 1).min(max_col);
+                    *self.selected_column.borrow_mut() = column;
+                    server_row.set_tv_column_focus(column as usize);
+                    return true;
                 }
                 false
             }
@@ -109,10 +106,10 @@ impl PlaceholderNavigator {
                 if column > 0 {
                     column = column.saturating_sub(1);
                     *self.selected_column.borrow_mut() = column;
-                    if let Some(row) = listbox.row_at_index(index as i32) {
-                        if let Ok(server_row) = row.downcast::<ServerActionRow>() {
-                            server_row.set_tv_column_focus(column as usize);
-                        }
+                    if let Some(row) = listbox.row_at_index(index as i32)
+                        && let Ok(server_row) = row.downcast::<ServerActionRow>()
+                    {
+                        server_row.set_tv_column_focus(column as usize);
                     }
                     return true;
                 }

@@ -1,6 +1,6 @@
+pub mod input;
 mod models;
 mod mpv;
-pub mod input;
 pub mod provider;
 pub mod widgets;
 

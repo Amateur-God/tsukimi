@@ -335,6 +335,9 @@ impl AccountSettings {
         gamepad_row.set_active(SETTINGS.gamepad_enabled());
         gamepad_row.connect_active_notify(|row| {
             let _ = SETTINGS.set_gamepad_enabled(row.is_active());
+            if !row.is_active() {
+                crate::tv::cursor::restore();
+            }
         });
         controls.add(&gamepad_row);
 
@@ -456,16 +459,18 @@ impl AccountSettings {
     }
 
     pub fn setup_playback_and_subtitle_settings(&self) {
-        use crate::playback::{
-            PlaybackRuleEditor,
-            rules::{
-                LanguageCondition,
-                PlaybackRule,
-                PlaybackRulesConfig,
-                SubtitleOutcome,
+        use crate::{
+            playback::{
+                PlaybackRuleEditor,
+                rules::{
+                    LanguageCondition,
+                    PlaybackRule,
+                    PlaybackRulesConfig,
+                    SubtitleOutcome,
+                },
             },
+            tv::osk,
         };
-        use crate::tv::osk;
 
         fn rule_summary(rule: &PlaybackRule) -> String {
             let subtitles = match &rule.then.subtitles {
@@ -518,9 +523,9 @@ impl AccountSettings {
         enable_row.set_active(config.enabled);
 
         let settings = self.clone();
-        let refresh_rules_for_init = std::rc::Rc::new(std::cell::RefCell::new(None::<
-            std::rc::Rc<dyn Fn(&PlaybackRulesConfig)>,
-        >));
+        let refresh_rules_for_init = std::rc::Rc::new(std::cell::RefCell::new(
+            None::<std::rc::Rc<dyn Fn(&PlaybackRulesConfig)>>,
+        ));
         let rebuild = {
             let rules_list = rules_list.clone();
             let enable_row = enable_row.clone();
@@ -681,7 +686,7 @@ impl AccountSettings {
         opensubtitles_row.set_text(&SETTINGS.opensubtitles_api_key());
         osk::attach_on_screen_keyboard(&opensubtitles_row);
         opensubtitles_row.connect_changed(|row| {
-            let _ = SETTINGS.set_opensubtitles_api_key(&row.text().to_string());
+            let _ = SETTINGS.set_opensubtitles_api_key(row.text().as_ref());
         });
         provider_group.add(&opensubtitles_row);
 
@@ -690,7 +695,7 @@ impl AccountSettings {
         subdl_row.set_text(&SETTINGS.subdl_api_key());
         osk::attach_on_screen_keyboard(&subdl_row);
         subdl_row.connect_changed(|row| {
-            let _ = SETTINGS.set_subdl_api_key(&row.text().to_string());
+            let _ = SETTINGS.set_subdl_api_key(row.text().as_ref());
         });
         provider_group.add(&subdl_row);
 
@@ -712,10 +717,7 @@ impl AccountSettings {
             } else {
                 providers.retain(|entry| entry != "opensubtitles");
             }
-            let _ = SETTINGS.set_string(
-                "subtitle-providers-enabled",
-                &providers.join(","),
-            );
+            let _ = SETTINGS.set_string("subtitle-providers-enabled", &providers.join(","));
         });
         provider_group.add(&opensubtitles_switch);
 
@@ -737,10 +739,7 @@ impl AccountSettings {
             } else {
                 providers.retain(|entry| entry != "subdl");
             }
-            let _ = SETTINGS.set_string(
-                "subtitle-providers-enabled",
-                &providers.join(","),
-            );
+            let _ = SETTINGS.set_string("subtitle-providers-enabled", &providers.join(","));
         });
         provider_group.add(&subdl_switch);
 

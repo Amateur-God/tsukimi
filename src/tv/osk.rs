@@ -3,8 +3,10 @@ use std::{
     rc::Rc,
 };
 
-use gtk::prelude::*;
-use gtk::glib::object::IsA;
+use gtk::{
+    glib::object::IsA,
+    prelude::*,
+};
 
 use crate::{
     tv::{
@@ -34,6 +36,7 @@ fn now_ms() -> u64 {
 /// Call when the user moves or clicks with a mouse/trackpad.
 pub fn mark_pointer_input() {
     LAST_DIRECT_MS.store(now_ms(), std::sync::atomic::Ordering::Relaxed);
+    super::cursor::on_pointer_activity();
 }
 
 /// Call when the user types on a physical keyboard.
@@ -45,6 +48,15 @@ pub fn mark_keyboard_input() {
 /// Call when a gamepad button or stick produces navigation input.
 pub fn mark_gamepad_input() {
     LAST_GAMEPAD_MS.store(now_ms(), std::sync::atomic::Ordering::Relaxed);
+    if crate::tv::cursor::suppress_pointer_hover() {
+        crate::ui::widgets::hover_scale::request_pointer_targeting_sync();
+    }
+}
+
+/// True when gamepad input is more recent than mouse/keyboard direct input.
+pub fn gamepad_owns_direct_input() -> bool {
+    LAST_GAMEPAD_MS.load(std::sync::atomic::Ordering::Relaxed)
+        > LAST_DIRECT_MS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 fn should_offer_osk() -> bool {
@@ -202,7 +214,8 @@ impl OnScreenKeyboard {
         }
         let (row, col) = self.index_to_row_col(*self.focused_index.borrow());
         let (next_row, next_col) = if delta_row != 0 {
-            let target_row = (row as i32 + delta_row).clamp(0, ROW_LENGTHS.len() as i32 - 1) as usize;
+            let target_row =
+                (row as i32 + delta_row).clamp(0, ROW_LENGTHS.len() as i32 - 1) as usize;
             let max_col = ROW_LENGTHS[target_row].saturating_sub(1) as i32;
             let target_col = col.min(max_col as usize);
             (target_row, target_col)
@@ -218,11 +231,7 @@ impl OnScreenKeyboard {
     }
 
     fn row_col_to_index(&self, row: usize, col: usize) -> usize {
-        ROW_LENGTHS
-            .iter()
-            .take(row)
-            .sum::<usize>()
-            + col.min(ROW_LENGTHS[row].saturating_sub(1))
+        ROW_LENGTHS.iter().take(row).sum::<usize>() + col.min(ROW_LENGTHS[row].saturating_sub(1))
     }
 
     fn index_to_row_col(&self, index: usize) -> (usize, usize) {
@@ -233,7 +242,10 @@ impl OnScreenKeyboard {
             }
             remaining -= len;
         }
-        (ROW_LENGTHS.len() - 1, ROW_LENGTHS.last().copied().unwrap_or(1) - 1)
+        (
+            ROW_LENGTHS.len() - 1,
+            ROW_LENGTHS.last().copied().unwrap_or(1) - 1,
+        )
     }
 
     fn apply_key_focus(&self) {
@@ -285,13 +297,13 @@ impl OnScreenKeyboard {
             }
             "␣" => insert_text(&target, " ", *self.shifted.borrow()),
             "↵" => {
-                if let Some(entry) = target.clone().downcast::<gtk::Entry>().ok() {
+                if let Ok(entry) = target.clone().downcast::<gtk::Entry>() {
                     entry.activate();
-                } else if let Some(entry) = target.clone().downcast::<gtk::SearchEntry>().ok() {
+                } else if let Ok(entry) = target.clone().downcast::<gtk::SearchEntry>() {
                     entry.activate();
-                } else if let Some(row) = target.clone().downcast::<adw::EntryRow>().ok() {
+                } else if let Ok(row) = target.clone().downcast::<adw::EntryRow>() {
                     row.activate();
-                } else if let Some(row) = target.clone().downcast::<adw::PasswordEntryRow>().ok() {
+                } else if let Ok(row) = target.clone().downcast::<adw::PasswordEntryRow>() {
                     row.activate();
                 }
                 self.hide();
@@ -316,10 +328,8 @@ fn insert_text(widget: &gtk::Widget, text: &str, shifted: bool) {
     };
     let mut pos = editable.position();
     editable.insert_text(&text, &mut pos);
-    if shifted {
-        if let Some(osk) = OSK.with(|slot| slot.borrow().clone()) {
-            *osk.shifted.borrow_mut() = false;
-        }
+    if shifted && let Some(osk) = OSK.with(|slot| slot.borrow().clone()) {
+        *osk.shifted.borrow_mut() = false;
     }
 }
 

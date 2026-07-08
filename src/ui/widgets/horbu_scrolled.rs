@@ -6,7 +6,6 @@ use gtk::{
     CompositeTemplate,
     gio,
     glib,
-    prelude::*,
 };
 
 use crate::{

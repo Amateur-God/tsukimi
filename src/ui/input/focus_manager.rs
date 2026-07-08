@@ -2,19 +2,19 @@ use std::cell::RefCell;
 
 use gtk::{
     glib::{
-        subclass::types::ObjectSubclassIsExt,
         WeakRef,
+        subclass::types::ObjectSubclassIsExt,
     },
     prelude::*,
 };
 
 use super::actions::InputAction;
 use crate::{
+    Window,
     ui::widgets::{
         home::HomePage,
         hortu_scrolled::HortuScrolled,
     },
-    Window,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -205,7 +205,11 @@ impl FocusManager {
         let Some((_, row)) = self.visible_row_at(index) else {
             return false;
         };
-        if delta < 0 && !row.is_header_focused() && row.selection_at_start() && !window.tv_sidebar_collapsed() {
+        if delta < 0
+            && !row.is_header_focused()
+            && row.selection_at_start()
+            && !window.tv_sidebar_collapsed()
+        {
             self.enter_sidebar(window);
             return true;
         }
@@ -337,16 +341,14 @@ impl FocusManager {
         let mut index = sidebar.selected() as i32;
         let step = if delta > 0 { 1 } else { -1 };
 
-        loop {
-            index += step;
-            if index < 0 {
-                return true;
-            }
-            if sidebar.item(index as u32).is_none() {
-                return true;
-            }
-            sidebar.set_selected(index as u32);
+        index += step;
+        if index < 0 {
             return true;
         }
+        if sidebar.item(index as u32).is_none() {
+            return true;
+        }
+        sidebar.set_selected(index as u32);
+        true
     }
 }

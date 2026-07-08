@@ -1,13 +1,15 @@
-use gtk::prelude::*;
-use gtk::glib::subclass::types::ObjectSubclassIsExt;
+use gtk::{
+    glib::subclass::types::ObjectSubclassIsExt,
+    prelude::*,
+};
 
 use super::actions::InputAction;
 use crate::{
+    Window,
     ui::{
         models::SETTINGS,
         mpv::page::MPVPage,
     },
-    Window,
 };
 
 pub struct MpvNavigator {
@@ -112,6 +114,7 @@ impl MpvNavigator {
     fn highlight_playlist_row(&self, window: &Window, index: u32) {
         let imp = window.imp();
         imp.mpv_playlist_selection.set_selected(index);
-        imp.mpv_playlist.scroll_to(index, gtk::ListScrollFlags::NONE, None);
+        imp.mpv_playlist
+            .scroll_to(index, gtk::ListScrollFlags::NONE, None);
     }
 }

@@ -1295,15 +1295,14 @@ impl ItemPage {
         let matcher = self.imp().video_version_matcher.borrow().to_owned();
         let external_sub = self.imp().pending_external_sub.borrow_mut().take();
 
-        self.window()
-            .play_media(
-                Some(info),
-                item,
-                episode_list,
-                matcher,
-                start_seconds,
-                external_sub,
-            );
+        self.window().play_media(
+            Some(info),
+            item,
+            episode_list,
+            matcher,
+            start_seconds,
+            external_sub,
+        );
     }
 
     #[template_callback]
@@ -1583,11 +1582,11 @@ impl ItemPage {
                     return true;
                 }
             }
-            if dx < 0 {
-                if let Some(widget) = actions.last() {
-                    self.set_top_bar_widget_focus(widget);
-                    return true;
-                }
+            if dx < 0
+                && let Some(widget) = actions.last()
+            {
+                self.set_top_bar_widget_focus(widget);
+                return true;
             }
             return false;
         }
@@ -1601,11 +1600,11 @@ impl ItemPage {
                     return true;
                 }
             }
-            if dx > 0 {
-                if let Some(widget) = media.first() {
-                    self.set_top_bar_widget_focus(widget);
-                    return true;
-                }
+            if dx > 0
+                && let Some(widget) = media.first()
+            {
+                self.set_top_bar_widget_focus(widget);
+                return true;
             }
         }
 
@@ -1923,15 +1922,15 @@ impl ItemPage {
         while let Some(singlebox) = source {
             let mut child = singlebox.first_child();
             while let Some(widget) = child {
-                if widget.is::<gtk::ScrolledWindow>() {
-                    if let Some(row) = widget.first_child() {
-                        let mut card = row.first_child();
-                        while let Some(card_widget) = card {
-                            if card_widget.has_css_class("card") {
-                                cards.push(card_widget.clone());
-                            }
-                            card = card_widget.next_sibling();
+                if widget.is::<gtk::ScrolledWindow>()
+                    && let Some(row) = widget.first_child()
+                {
+                    let mut card = row.first_child();
+                    while let Some(card_widget) = card {
+                        if card_widget.has_css_class("card") {
+                            cards.push(card_widget.clone());
                         }
+                        card = card_widget.next_sibling();
                     }
                 }
                 child = widget.next_sibling();
@@ -2020,7 +2019,9 @@ impl ItemPage {
         };
         let next = (current + delta).clamp(0, count - 1) as u32;
         imp.selection.set_selected(next);
-        imp.itemlist.get().scroll_to(next, ListScrollFlags::NONE, None);
+        imp.itemlist
+            .get()
+            .scroll_to(next, ListScrollFlags::NONE, None);
     }
 
     pub fn activate_focused_episode(&self) {
@@ -2029,11 +2030,7 @@ impl ItemPage {
         if index == gtk::INVALID_LIST_POSITION {
             return;
         }
-        if let Some(item) = imp
-            .selection
-            .item(index)
-            .and_downcast::<TuObject>()
-        {
+        if let Some(item) = imp.selection.item(index).and_downcast::<TuObject>() {
             item.item().activate(self);
         }
     }

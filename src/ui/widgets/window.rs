@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    path::PathBuf,
-    rc::Rc,
-};
+use std::path::PathBuf;
 
 use adw::prelude::*;
 use gettextrs::gettext;
@@ -153,14 +149,11 @@ mod imp {
         pub pushed_navigator: RefCell<PushedNavigator>,
         pub media_viewer_navigator: RefCell<MediaViewerNavigator>,
         pub home_focus_snapshot: RefCell<Option<crate::ui::input::HomeFocusSnapshot>>,
-        pub active_settings:
-            RefCell<Option<crate::ui::widgets::account_settings::AccountSettings>>,
-        pub active_account_dialog:
-            RefCell<Option<crate::ui::widgets::account_add::AccountWindow>>,
+        pub active_settings: RefCell<Option<crate::ui::widgets::account_settings::AccountSettings>>,
+        pub active_account_dialog: RefCell<Option<crate::ui::widgets::account_add::AccountWindow>>,
         pub tv_hints_revealer: RefCell<Option<gtk::Revealer>>,
         pub tv_hints_label: RefCell<Option<gtk::Label>>,
         pub tv_hints_hide_source: RefCell<Option<glib::SourceId>>,
-        pub tv_cursor_hide_setup: std::cell::Cell<bool>,
         pub tv_preferences_section: RefCell<Option<adw::SidebarSection>>,
         pub tv_session_section: RefCell<Option<adw::SidebarSection>>,
 
@@ -887,8 +880,7 @@ impl Window {
         self.sync_tv_button_hints();
         self.prevent_suspend();
         self.set_mpv_playlist(&episode_list);
-        imp.mpvnav
-            .set_external_sub_override(external_sub);
+        imp.mpvnav.set_external_sub_override(external_sub);
         imp.mpvnav
             .play(selected, item, episode_list, matcher, start_seconds);
     }
@@ -1005,26 +997,26 @@ impl Window {
             return;
         };
 
-        if let Some(prefs) = imp.tv_preferences_section.borrow().as_ref() {
-            if prefs == &section {
-                self.account_settings();
-                return;
-            }
+        if let Some(prefs) = imp.tv_preferences_section.borrow().as_ref()
+            && prefs == &section
+        {
+            self.account_settings();
+            return;
         }
 
-        if let Some(session) = imp.tv_session_section.borrow().as_ref() {
-            if session == &section {
-                match item.section_index() {
-                    0 => {
-                        let _ = gtk::prelude::WidgetExt::activate_action(self, "win.relogin", None);
-                    }
-                    1 => {
-                        let _ = gtk::prelude::WidgetExt::activate_action(self, "win.quit", None);
-                    }
-                    _ => {}
+        if let Some(session) = imp.tv_session_section.borrow().as_ref()
+            && session == &section
+        {
+            match item.section_index() {
+                0 => {
+                    let _ = gtk::prelude::WidgetExt::activate_action(self, "win.relogin", None);
                 }
-                return;
+                1 => {
+                    let _ = gtk::prelude::WidgetExt::activate_action(self, "win.quit", None);
+                }
+                _ => {}
             }
+            return;
         }
 
         if section == *imp.servers_section {
@@ -1071,12 +1063,17 @@ impl Window {
     }
 
     pub fn setup_input(&self) {
+        crate::tv::cursor::register_window(self);
         let window = self.clone();
         glib::timeout_add_local(std::time::Duration::from_millis(16), move || {
             let actions = {
                 let mut mgr = window.imp().gamepad_manager.borrow_mut();
                 mgr.poll(&window)
             };
+            if !actions.is_empty() {
+                crate::tv::cursor::on_gamepad_activity();
+                glib::idle_add_local_once(crate::tv::cursor::on_gamepad_activity);
+            }
             for action in actions {
                 window.handle_input_action(action);
             }
@@ -1099,63 +1096,6 @@ impl Window {
         self.add_controller(keys);
 
         self.sync_tv_button_hints();
-    }
-
-    fn setup_tv_cursor_auto_hide(&self) {
-        if !crate::tv::is_tv_mode_active() || self.imp().tv_cursor_hide_setup.get() {
-            return;
-        }
-        self.imp().tv_cursor_hide_setup.set(true);
-
-        let hide_source: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-        let window = self.clone();
-
-        let set_cursor_visible = {
-            let window = window.clone();
-            move |visible: bool| {
-                if visible {
-                    window.remove_css_class("tv-cursor-hidden");
-                } else {
-                    window.add_css_class("tv-cursor-hidden");
-                }
-            }
-        };
-
-        let reschedule_hide: Rc<dyn Fn()> = Rc::new({
-            let hide_source = hide_source.clone();
-            let window = window.clone();
-            let set_cursor_visible = set_cursor_visible.clone();
-            move || {
-                set_cursor_visible(true);
-                if let Some(id) = hide_source.borrow_mut().take() {
-                    id.remove();
-                }
-                let hide_source = hide_source.clone();
-                let window = window.clone();
-                let set_cursor_visible = set_cursor_visible.clone();
-                let hide_source_cb = hide_source.clone();
-                let id = glib::timeout_add_local(std::time::Duration::from_secs(3), move || {
-                    if window.imp().stack.visible_child_name().as_deref() == Some("main")
-                        && !window.is_on_mpv_stack()
-                    {
-                        set_cursor_visible(false);
-                    }
-                    hide_source_cb.borrow_mut().take();
-                    glib::ControlFlow::Break
-                });
-                *hide_source.borrow_mut() = Some(id);
-            }
-        });
-
-        let motion = gtk::EventControllerMotion::new();
-        motion.connect_motion({
-            let reschedule_hide = reschedule_hide.clone();
-            move |_, _, _| {
-                reschedule_hide();
-            }
-        });
-        self.add_controller(motion);
-        reschedule_hide();
     }
 
     pub fn refresh_focus_manager(&self) {
@@ -1181,8 +1121,6 @@ impl Window {
             self.setup_tv_hints();
         }
         self.sync_tv_button_hints();
-
-        self.setup_tv_cursor_auto_hide();
 
         let start_fullscreen = cli_fullscreen
             || SETTINGS.tv_start_fullscreen()
@@ -1250,16 +1188,13 @@ impl Window {
         self.remove_tv_preferences_sidebar();
         self.remove_tv_session_sidebar();
         self.remove_css_class("tv-mode");
-        self.remove_css_class("tv-cursor-hidden");
+        crate::tv::cursor::restore();
         self.set_decorated(true);
         if let Some(revealer) = self.imp().tv_hints_revealer.borrow().as_ref() {
             revealer.set_visible(false);
             revealer.set_reveal_child(false);
         }
-        if self.is_fullscreen()
-            && !SETTINGS.is_fullscreen()
-            && !SETTINGS.tv_start_fullscreen()
-        {
+        if self.is_fullscreen() && !SETTINGS.is_fullscreen() && !SETTINGS.tv_start_fullscreen() {
             self.unfullscreen();
         }
         self.overlay_sidebar(SETTINGS.overlay());
@@ -1286,11 +1221,12 @@ impl Window {
         }
 
         match self.resolve_navigation_context() {
-            NavigationContext::Mpv => self
-                .imp()
-                .mpv_navigator
-                .borrow()
-                .handle(self, &self.imp().mpvnav, action),
+            NavigationContext::Mpv => {
+                self.imp()
+                    .mpv_navigator
+                    .borrow()
+                    .handle(self, &self.imp().mpvnav, action)
+            }
             NavigationContext::Placeholder => {
                 let imp = self.imp();
                 imp.placeholder_navigator.borrow().handle(
@@ -1300,14 +1236,19 @@ impl Window {
                     action,
                 )
             }
-            NavigationContext::MediaViewer => self
-                .imp()
-                .media_viewer_navigator
-                .borrow()
-                .handle(self, &self.imp().media_viewer.get(), action),
+            NavigationContext::MediaViewer => self.imp().media_viewer_navigator.borrow().handle(
+                self,
+                &self.imp().media_viewer.get(),
+                action,
+            ),
             NavigationContext::Modal => self.handle_modal_input(action),
             NavigationContext::Pushed(PushedPageKind::Item) => {
-                if let Some(page) = self.imp().mainview.visible_page().and_downcast::<ItemPage>() {
+                if let Some(page) = self
+                    .imp()
+                    .mainview
+                    .visible_page()
+                    .and_downcast::<ItemPage>()
+                {
                     return self
                         .imp()
                         .item_navigator
@@ -1317,7 +1258,11 @@ impl Window {
                 false
             }
             NavigationContext::Pushed(PushedPageKind::Grid) => {
-                if let Some(page) = self.imp().mainview.visible_page().and_downcast::<SingleGrid>()
+                if let Some(page) = self
+                    .imp()
+                    .mainview
+                    .visible_page()
+                    .and_downcast::<SingleGrid>()
                 {
                     return self
                         .imp()
@@ -1327,11 +1272,9 @@ impl Window {
                 }
                 false
             }
-            NavigationContext::Pushed(PushedPageKind::Other) => self
-                .imp()
-                .pushed_navigator
-                .borrow()
-                .handle(self, action),
+            NavigationContext::Pushed(PushedPageKind::Other) => {
+                self.imp().pushed_navigator.borrow().handle(self, action)
+            }
             NavigationContext::Main(MainTab::Home) => match action {
                 InputAction::ToggleHints => {
                     self.toggle_tv_hints();
@@ -1340,6 +1283,9 @@ impl Window {
                 InputAction::SwitchGamepad => {
                     let enabled = !crate::ui::SETTINGS.gamepad_enabled();
                     let _ = crate::ui::SETTINGS.set_gamepad_enabled(enabled);
+                    if !enabled {
+                        crate::tv::cursor::restore();
+                    }
                     let mgr = self.imp().gamepad_manager.borrow();
                     self.toast(if enabled {
                         format!(

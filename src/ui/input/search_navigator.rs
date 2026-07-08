@@ -1,11 +1,13 @@
-use gtk::prelude::*;
-use gtk::glib::subclass::types::ObjectSubclassIsExt;
+use gtk::{
+    glib::subclass::types::ObjectSubclassIsExt,
+    prelude::*,
+};
 
 use super::actions::InputAction;
 use crate::{
+    Window,
     tv::set_tv_focused,
     ui::widgets::search::SearchPage,
-    Window,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -38,8 +40,10 @@ impl SearchNavigator {
                 true
             }
             InputAction::Menu => {
-                window.set_sidebar_panel_visible(!window.tv_sidebar_collapsed()
-                    || !window.imp().split_view.get().shows_sidebar());
+                window.set_sidebar_panel_visible(
+                    !window.tv_sidebar_collapsed()
+                        || !window.imp().split_view.get().shows_sidebar(),
+                );
                 true
             }
             InputAction::Back => {

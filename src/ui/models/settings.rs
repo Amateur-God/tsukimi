@@ -588,8 +588,7 @@ impl Settings {
     }
 
     pub fn set_playback_conditional_rules(
-        &self,
-        config: &crate::playback::rules::PlaybackRulesConfig,
+        &self, config: &crate::playback::rules::PlaybackRulesConfig,
     ) -> Result<(), glib::BoolError> {
         let raw = serde_json::to_string(config)
             .map_err(|_| glib::bool_error!("Failed to serialize playback rules"))?;

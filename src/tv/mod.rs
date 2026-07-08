@@ -12,10 +12,11 @@ use gtk::{
 };
 
 use crate::{
-    ui::SETTINGS,
     Window,
+    ui::SETTINGS,
 };
 
+pub mod cursor;
 pub mod focus;
 pub mod osk;
 
@@ -41,10 +42,7 @@ pub fn set_tv_mode_active(active: bool) {
 
 /// Resolve whether TV visual mode should be active for this session.
 pub fn resolve_tv_mode(cli_tv_mode: bool, cli_fullscreen: bool) -> bool {
-    cli_tv_mode
-        || crate::steam::is_steam_big_picture()
-        || SETTINGS.tv_mode()
-        || cli_fullscreen
+    cli_tv_mode || crate::steam::is_steam_big_picture() || SETTINGS.tv_mode() || cli_fullscreen
 }
 
 fn build_tv_css() -> String {

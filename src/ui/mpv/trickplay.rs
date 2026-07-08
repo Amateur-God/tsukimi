@@ -16,16 +16,9 @@ pub struct TrickplayManifest {
     pub url_template: String,
 }
 
+#[derive(Default)]
 pub struct TrickplayCache {
     tiles: HashMap<u32, Vec<u8>>,
-}
-
-impl Default for TrickplayCache {
-    fn default() -> Self {
-        Self {
-            tiles: HashMap::new(),
-        }
-    }
 }
 
 impl TrickplayCache {

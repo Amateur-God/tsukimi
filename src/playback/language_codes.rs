@@ -6,36 +6,126 @@ pub struct LanguageOption {
 }
 
 pub const LANGUAGE_OPTIONS: &[LanguageOption] = &[
-    LanguageOption { code: "eng", label: "English" },
-    LanguageOption { code: "jpn", label: "Japanese" },
-    LanguageOption { code: "deu", label: "German" },
-    LanguageOption { code: "fra", label: "French" },
-    LanguageOption { code: "spa", label: "Spanish" },
-    LanguageOption { code: "ita", label: "Italian" },
-    LanguageOption { code: "por", label: "Portuguese" },
-    LanguageOption { code: "rus", label: "Russian" },
-    LanguageOption { code: "kor", label: "Korean" },
-    LanguageOption { code: "zho", label: "Chinese" },
-    LanguageOption { code: "cmn", label: "Mandarin" },
-    LanguageOption { code: "yue", label: "Cantonese" },
-    LanguageOption { code: "ara", label: "Arabic" },
-    LanguageOption { code: "hin", label: "Hindi" },
-    LanguageOption { code: "nld", label: "Dutch" },
-    LanguageOption { code: "swe", label: "Swedish" },
-    LanguageOption { code: "nor", label: "Norwegian" },
-    LanguageOption { code: "dan", label: "Danish" },
-    LanguageOption { code: "fin", label: "Finnish" },
-    LanguageOption { code: "pol", label: "Polish" },
-    LanguageOption { code: "ces", label: "Czech" },
-    LanguageOption { code: "hun", label: "Hungarian" },
-    LanguageOption { code: "ron", label: "Romanian" },
-    LanguageOption { code: "tur", label: "Turkish" },
-    LanguageOption { code: "tha", label: "Thai" },
-    LanguageOption { code: "vie", label: "Vietnamese" },
-    LanguageOption { code: "ind", label: "Indonesian" },
-    LanguageOption { code: "msa", label: "Malay" },
-    LanguageOption { code: "heb", label: "Hebrew" },
-    LanguageOption { code: "ukr", label: "Ukrainian" },
+    LanguageOption {
+        code: "eng",
+        label: "English",
+    },
+    LanguageOption {
+        code: "jpn",
+        label: "Japanese",
+    },
+    LanguageOption {
+        code: "deu",
+        label: "German",
+    },
+    LanguageOption {
+        code: "fra",
+        label: "French",
+    },
+    LanguageOption {
+        code: "spa",
+        label: "Spanish",
+    },
+    LanguageOption {
+        code: "ita",
+        label: "Italian",
+    },
+    LanguageOption {
+        code: "por",
+        label: "Portuguese",
+    },
+    LanguageOption {
+        code: "rus",
+        label: "Russian",
+    },
+    LanguageOption {
+        code: "kor",
+        label: "Korean",
+    },
+    LanguageOption {
+        code: "zho",
+        label: "Chinese",
+    },
+    LanguageOption {
+        code: "cmn",
+        label: "Mandarin",
+    },
+    LanguageOption {
+        code: "yue",
+        label: "Cantonese",
+    },
+    LanguageOption {
+        code: "ara",
+        label: "Arabic",
+    },
+    LanguageOption {
+        code: "hin",
+        label: "Hindi",
+    },
+    LanguageOption {
+        code: "nld",
+        label: "Dutch",
+    },
+    LanguageOption {
+        code: "swe",
+        label: "Swedish",
+    },
+    LanguageOption {
+        code: "nor",
+        label: "Norwegian",
+    },
+    LanguageOption {
+        code: "dan",
+        label: "Danish",
+    },
+    LanguageOption {
+        code: "fin",
+        label: "Finnish",
+    },
+    LanguageOption {
+        code: "pol",
+        label: "Polish",
+    },
+    LanguageOption {
+        code: "ces",
+        label: "Czech",
+    },
+    LanguageOption {
+        code: "hun",
+        label: "Hungarian",
+    },
+    LanguageOption {
+        code: "ron",
+        label: "Romanian",
+    },
+    LanguageOption {
+        code: "tur",
+        label: "Turkish",
+    },
+    LanguageOption {
+        code: "tha",
+        label: "Thai",
+    },
+    LanguageOption {
+        code: "vie",
+        label: "Vietnamese",
+    },
+    LanguageOption {
+        code: "ind",
+        label: "Indonesian",
+    },
+    LanguageOption {
+        code: "msa",
+        label: "Malay",
+    },
+    LanguageOption {
+        code: "heb",
+        label: "Hebrew",
+    },
+    LanguageOption {
+        code: "ukr",
+        label: "Ukrainian",
+    },
 ];
 
 pub fn language_combo_labels() -> Vec<String> {

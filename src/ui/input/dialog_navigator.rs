@@ -6,8 +6,8 @@ use super::{
     settings_navigator::SettingsNavigator,
 };
 use crate::{
-    tv::set_tv_focused,
     Window,
+    tv::set_tv_focused,
 };
 
 thread_local! {
@@ -65,10 +65,10 @@ fn dialog_content_root(dialog: &adw::Dialog) -> gtk::Widget {
     let Some(child) = dialog.child() else {
         return dialog.upcast_ref::<gtk::Widget>().clone();
     };
-    if let Some(nav) = find_descendant::<adw::NavigationView>(child.upcast_ref()) {
-        if let Some(page) = nav.visible_page() {
-            return page.upcast::<gtk::Widget>();
-        }
+    if let Some(nav) = find_descendant::<adw::NavigationView>(child.upcast_ref())
+        && let Some(page) = nav.visible_page()
+    {
+        return page.upcast::<gtk::Widget>();
     }
     child
 }
@@ -93,7 +93,7 @@ fn find_visible_dialog(window: &Window) -> Option<adw::Dialog> {
 
 fn find_alert_buttons(window: &Window) -> Option<Vec<gtk::Button>> {
     let buttons = collect_alert_buttons(window.upcast_ref());
-    if buttons.len() >= 1 {
+    if !buttons.is_empty() {
         Some(buttons)
     } else {
         None
@@ -107,14 +107,11 @@ fn collect_alert_buttons(root: &gtk::Widget) -> Vec<gtk::Button> {
         if let Ok(button) = widget.clone().downcast::<gtk::Button>()
             && button.is_visible()
             && button.is_sensitive()
-            && button
-                .parent()
-                .and_then(|p| p.parent())
-                .is_some_and(|gp| {
-                    gp.has_css_class("dialog")
-                        || gp.type_().name().contains("Alert")
-                        || gp.type_().name().contains("Message")
-                })
+            && button.parent().and_then(|p| p.parent()).is_some_and(|gp| {
+                gp.has_css_class("dialog")
+                    || gp.type_().name().contains("Alert")
+                    || gp.type_().name().contains("Message")
+            })
         {
             buttons.push(button);
         }
@@ -127,11 +124,7 @@ fn collect_alert_buttons(root: &gtk::Widget) -> Vec<gtk::Button> {
     buttons
 }
 
-fn handle_buttons(
-    buttons: &[gtk::Button],
-    action: InputAction,
-    on_back: impl FnOnce(),
-) -> bool {
+fn handle_buttons(buttons: &[gtk::Button], action: InputAction, on_back: impl FnOnce()) -> bool {
     if buttons.is_empty() {
         return false;
     }
@@ -201,9 +194,7 @@ fn find_descendant<T: IsA<gtk::Widget>>(root: &gtk::Widget) -> Option<T> {
 }
 
 fn handle_grid_selection(
-    grid: &gtk::GridView,
-    action: InputAction,
-    on_back: impl FnOnce(),
+    grid: &gtk::GridView, action: InputAction, on_back: impl FnOnce(),
 ) -> bool {
     let Some(selection) = grid
         .model()
@@ -269,11 +260,7 @@ fn estimate_grid_columns(grid: &gtk::GridView) -> i32 {
     (width / item_width).max(1)
 }
 
-fn handle_listbox(
-    listbox: &gtk::ListBox,
-    action: InputAction,
-    on_back: impl FnOnce(),
-) -> bool {
+fn handle_listbox(listbox: &gtk::ListBox, action: InputAction, on_back: impl FnOnce()) -> bool {
     let rows: Vec<gtk::ListBoxRow> = listbox
         .observe_children()
         .into_iter()

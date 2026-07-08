@@ -3,6 +3,14 @@ use std::{
     collections::HashMap,
 };
 
+use super::{
+    actions::InputAction,
+    gamepad_profile::GamepadProfile,
+};
+use crate::{
+    Window,
+    ui::widgets::utils::GlobalToast,
+};
 use gilrs::{
     Axis,
     Button,
@@ -10,14 +18,6 @@ use gilrs::{
     GamepadId,
     Gilrs,
     GilrsBuilder,
-};
-use super::{
-    actions::InputAction,
-    gamepad_profile::GamepadProfile,
-};
-use crate::{
-    ui::widgets::utils::GlobalToast,
-    Window,
 };
 
 pub struct GamepadManager {
@@ -96,9 +96,6 @@ impl GamepadManager {
                 if self.primary_id.borrow().is_some_and(|id| id != event.id) {
                     continue;
                 }
-
-                crate::tv::osk::mark_gamepad_input();
-                self.track_active_gamepad(event.id, gilrs);
 
                 if let Some(action) = self.map_event(event.id, event.event) {
                     actions.push(action);
@@ -195,10 +192,7 @@ impl GamepadManager {
     }
 
     fn poll_stick_axis(
-        &self,
-        id: GamepadId,
-        gamepad: &gilrs::Gamepad<'_>,
-        axis: Axis,
+        &self, id: GamepadId, gamepad: &gilrs::Gamepad<'_>, axis: Axis,
         actions: &mut Vec<InputAction>,
     ) {
         let value = gamepad.value(axis);
@@ -219,14 +213,24 @@ impl GamepadManager {
 
     fn consume_button_edge(&self, id: GamepadId, button: Button, pressed: bool) -> bool {
         let key = (id, button);
-        let was_pressed = self.button_active.borrow().get(&key).copied().unwrap_or(false);
+        let was_pressed = self
+            .button_active
+            .borrow()
+            .get(&key)
+            .copied()
+            .unwrap_or(false);
         self.button_active.borrow_mut().insert(key, pressed);
         pressed && !was_pressed
     }
 
     fn consume_axis_edge(&self, id: GamepadId, axis: Axis, active: bool) -> bool {
         let key = (id, axis);
-        let was_active = self.axis_active.borrow().get(&key).copied().unwrap_or(false);
+        let was_active = self
+            .axis_active
+            .borrow()
+            .get(&key)
+            .copied()
+            .unwrap_or(false);
         self.axis_active.borrow_mut().insert(key, active);
         active && !was_active
     }
@@ -288,10 +292,7 @@ impl GamepadManager {
 }
 
 fn open_gilrs() -> Option<Gilrs> {
-    GilrsBuilder::new()
-        .with_force_feedback(false)
-        .build()
-        .ok()
+    GilrsBuilder::new().with_force_feedback(false).build().ok()
 }
 
 fn is_game_controller(name: &str) -> bool {
