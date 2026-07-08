@@ -274,6 +274,29 @@ impl HoverScale {
     pub fn set_underlay(&self, f: impl Fn(&gtk::Snapshot) + 'static) {
         self.imp().underlay.replace(Some(Box::new(f)));
     }
+
+    /// Gamepad/TV focus ring — same scale animation as pointer hover, without tilt.
+    pub fn set_highlighted(&self, highlighted: bool) {
+        let imp = self.imp();
+        let Some(animation) = imp.animation.get() else {
+            return;
+        };
+        let at_target = if highlighted {
+            animation.value() >= 1.0
+        } else {
+            animation.value() <= 0.0
+        };
+        if at_target {
+            return;
+        }
+        if highlighted {
+            imp.cursor_nx.set(0.0);
+            imp.cursor_ny.set(0.0);
+        }
+        animation.set_value_from(animation.value());
+        animation.set_value_to(if highlighted { 1.0 } else { 0.0 });
+        animation.play();
+    }
 }
 
 impl Default for HoverScale {

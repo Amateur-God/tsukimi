@@ -914,6 +914,12 @@ impl JellyfinClient {
         url.join(path.trim_start_matches('/')).unwrap().to_string()
     }
 
+    pub async fn fetch_bytes(&self, path: &str) -> Result<Vec<u8>> {
+        let request = self.prepare_request(Method::GET, path.trim_start_matches('/'), &[])?;
+        let response = self.send_request(request).await?;
+        Ok(response.bytes().await?.to_vec())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn get_list(
         &self, id: &str, start: u32, include_item_types: &str, list_type: ListType,
@@ -948,6 +954,7 @@ impl JellyfinClient {
                     ("IncludeItemTypes", include_item_type),
                     ("SortBy", sortby),
                     ("SortOrder", sort_order),
+                    ("EnableTotalRecordCount", "true"),
                     ("EnableImageTypes", "Primary,Backdrop,Thumb,Banner"),
                     if list_type == ListType::Liked {
                         ("Filters", "IsFavorite")

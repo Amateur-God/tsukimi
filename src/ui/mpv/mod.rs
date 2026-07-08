@@ -4,6 +4,7 @@ pub mod menu_actions;
 pub mod mpris;
 pub mod mpvglarea;
 pub mod options_matcher;
+pub mod trickplay;
 pub mod page;
 pub mod tsukimi_mpv;
 pub mod video_scale;

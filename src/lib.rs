@@ -10,6 +10,10 @@ mod gstl;
 mod macros;
 #[cfg(target_os = "linux")]
 mod mpris_common;
+mod playback;
+mod steam;
+mod subtitles;
+mod tv;
 mod ui;
 mod utils;
 
@@ -47,11 +51,33 @@ const GRESOURCE_FILE: &str = "tsukimi.gresource";
 
 pub fn locale_dir() -> &'static str {
     static FLOCALEDIR: OnceCell<&'static str> = OnceCell::new();
-    FLOCALEDIR.get_or_init(|| LOCALEDIR)
+    FLOCALEDIR.get_or_init(|| {
+        env::var("TSUKIMI_LOCALEDIR")
+            .map(|path| Box::leak(path.into_boxed_str()) as &str)
+            .unwrap_or(LOCALEDIR)
+    })
+}
+
+fn pkgdatadir() -> std::path::PathBuf {
+    env::var("TSUKIMI_PKGDATADIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from(PKGDATADIR))
 }
 
 pub fn run() -> gtk::glib::ExitCode {
-    Args::parse().init();
+    let args = Args::parse();
+    args.init();
+
+    let tv_active = tv::resolve_tv_mode(args.tv_mode(), args.fullscreen());
+    tv::set_tv_mode_active(tv_active);
+    tracing::info!(
+        "TV mode active: {tv_active} (cli={}, settings={})",
+        args.tv_mode(),
+        crate::ui::SETTINGS.tv_mode()
+    );
+    if tv_active && crate::steam::is_steam_big_picture() {
+        tracing::info!("Steam Big Picture detected, enabling TV mode for this session");
+    }
     // Initialize gettext
     setlocale(LocaleCategory::LcAll, String::new());
     bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8").expect("Failed to set textdomain codeset");
@@ -73,7 +99,7 @@ pub fn run() -> gtk::glib::ExitCode {
 }
 
 fn register_gio_resources() {
-    let path = std::path::Path::new(PKGDATADIR).join(GRESOURCE_FILE);
+    let path = pkgdatadir().join(GRESOURCE_FILE);
     let resources = gtk::gio::Resource::load(path).expect("Failed to load resources.");
     gtk::gio::resources_register(&resources);
 }

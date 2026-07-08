@@ -118,6 +118,10 @@ impl ServerActionRow {
             .build()
     }
 
+    pub fn set_tv_focused(&self, focused: bool) {
+        crate::tv::set_tv_focused(self, focused);
+    }
+
     #[template_callback]
     fn on_edit_clicked(&self) {
         let account = self.item().account();

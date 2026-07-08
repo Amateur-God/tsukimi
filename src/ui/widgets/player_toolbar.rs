@@ -222,6 +222,10 @@ impl PlayerToolbarBox {
         imp.toolbar.set_revealed(false);
     }
 
+    pub fn toggle_playback(&self) {
+        self.on_play_button_clicked();
+    }
+
     #[template_callback]
     fn on_play_button_clicked(&self) {
         let player = &self.imp().player;
