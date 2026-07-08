@@ -623,6 +623,10 @@ impl Window {
             ac.set_decorated(false);
         }
         *self.imp().active_settings.borrow_mut() = Some(ac.clone());
+        self.imp()
+            .settings_navigator
+            .borrow()
+            .reset_for_preferences(&ac);
         ac.present();
     }
 

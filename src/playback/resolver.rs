@@ -1,6 +1,7 @@
 use crate::{
     client::structs::MediaStream,
     playback::rules::{
+        self,
         AudioOutcome,
         PlaybackOutcome,
         PlaybackRules,
@@ -22,20 +23,34 @@ pub struct ResolvedPlaybackTracks {
 
 pub fn resolve_playback_tracks(audio_language: Option<&str>) -> ResolvedPlaybackTracks {
     let config = PlaybackRules::load();
-    let outcome = PlaybackRules::evaluate(audio_language, &config);
-
-    if !config.enabled || config.rules.is_empty() {
+    if !config.enabled {
         return legacy_fallback();
     }
-
+    let outcome = PlaybackRules::evaluate(audio_language, &config);
     resolved_from_outcome(&outcome)
 }
 
 pub fn detect_default_audio_language(streams: &[MediaStream]) -> Option<String> {
-    streams
+    let audio_streams: Vec<_> = streams
         .iter()
-        .find(|s| s.stream_type == "Audio")
-        .and_then(|s| s.language.clone())
+        .filter(|stream| stream.stream_type == "Audio")
+        .collect();
+    if audio_streams.is_empty() {
+        return None;
+    }
+
+    let preferred = SETTINGS.mpv_audio_preferred_lang_str();
+    if !preferred.is_empty()
+        && let Some(stream) = audio_streams.iter().find(|stream| {
+            rules::language_matches(stream.language.as_deref(), &preferred)
+        })
+    {
+        return stream.language.clone();
+    }
+
+    audio_streams
+        .first()
+        .and_then(|stream| stream.language.clone())
 }
 
 pub fn resolve_slang(resolved: &ResolvedPlaybackTracks) -> String {
@@ -150,7 +165,7 @@ pub fn pick_subtitle_stream<'a>(
     if let Some(lang) = resolved.prefer_subtitle_lang.as_deref() {
         if let Some(stream) = subtitle_streams
             .iter()
-            .find(|s| language_matches(stream_language(s), lang))
+            .find(|s| rules::language_matches(stream_language(s), lang))
         {
             return Some(*stream);
         }
@@ -183,29 +198,3 @@ fn stream_language(stream: &MediaStream) -> Option<&str> {
         .or(stream.display_language.as_deref())
 }
 
-fn language_matches(actual: Option<&str>, expected: &str) -> bool {
-    let Some(actual) = actual else {
-        return false;
-    };
-    let actual = actual.to_lowercase();
-    let expected = expected.to_lowercase();
-    actual == expected
-        || actual.starts_with(&format!("{expected}-"))
-        || expected.starts_with(&actual)
-        || lang_display_name(&actual).contains(&lang_display_name(&expected))
-}
-
-fn lang_display_name(code: &str) -> String {
-    match code {
-        "eng" | "en" => "english".into(),
-        "jpn" | "ja" => "japanese".into(),
-        "chs" | "zh" | "chi" => "chinese".into(),
-        "fre" | "fr" => "french".into(),
-        "ger" | "de" => "german".into(),
-        "spa" | "es" => "spanish".into(),
-        "rus" | "ru" => "russian".into(),
-        "por" | "pt" => "portuguese".into(),
-        "ara" | "ar" => "arabic".into(),
-        other => other.to_string(),
-    }
-}

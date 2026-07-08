@@ -23,6 +23,7 @@ use adw::{
     subclass::prelude::*,
 };
 use gettextrs::gettext;
+use glib::translate::IntoGlib;
 use gtk::{
     CompositeTemplate,
     gdk::{
@@ -141,6 +142,8 @@ mod imp {
 
         pub descriptor_grab_x: Cell<f64>,
         pub descriptor_grab_y: Cell<f64>,
+
+        pub preference_pages: RefCell<Vec<adw::PreferencesPage>>,
     }
 
     #[glib::object_subclass]
@@ -209,6 +212,8 @@ mod imp {
             obj.setup_playback_and_subtitle_settings();
             obj.setup_osk_entries();
             obj.refersh_descriptors();
+            obj.cache_preference_pages();
+            obj.setup_tv_controller_navigation();
         }
     }
 
@@ -230,6 +235,56 @@ glib::wrapper! {
 impl AccountSettings {
     pub fn new(window: crate::Window) -> Self {
         glib::Object::builder().property("window", window).build()
+    }
+
+    pub fn preference_pages(&self) -> Vec<adw::PreferencesPage> {
+        self.imp().preference_pages.borrow().clone()
+    }
+
+    fn cache_preference_pages(&self) {
+        *self.imp().preference_pages.borrow_mut() =
+            crate::ui::input::settings_navigator::find_view_stack_pages(
+                self.upcast_ref::<adw::PreferencesWindow>(),
+            );
+    }
+
+    fn setup_tv_controller_navigation(&self) {
+        if !crate::tv::focus::tv_focus_enabled() {
+            return;
+        }
+        let settings = self.clone();
+        let parent = self.window();
+        let keys = gtk::EventControllerKey::new();
+        keys.connect_key_pressed(move |_, keyval, _, _| {
+            if !crate::tv::controller_navigation_enabled() {
+                return glib::Propagation::Proceed;
+            }
+            let Some(action) = crate::ui::input::key_to_action(keyval.into_glib()) else {
+                return glib::Propagation::Proceed;
+            };
+            if parent
+                .imp()
+                .settings_navigator
+                .borrow()
+                .handle_window(&settings, action)
+            {
+                return glib::Propagation::Stop;
+            }
+            glib::Propagation::Proceed
+        });
+        self.add_controller(keys);
+
+        let pointer = gtk::EventControllerLegacy::new();
+        pointer.connect_event(move |_, event| {
+            if event.event_type() == gtk::gdk::EventType::ButtonPress
+                || event.event_type() == gtk::gdk::EventType::ButtonRelease
+                || event.event_type() == gtk::gdk::EventType::MotionNotify
+            {
+                crate::tv::osk::mark_pointer_input();
+            }
+            glib::Propagation::Proceed
+        });
+        self.add_controller(pointer);
     }
 
     #[template_callback]
@@ -404,7 +459,6 @@ impl AccountSettings {
         use crate::playback::{
             PlaybackRuleEditor,
             rules::{
-                AudioOutcome,
                 LanguageCondition,
                 PlaybackRule,
                 PlaybackRulesConfig,
@@ -414,13 +468,6 @@ impl AccountSettings {
         use crate::tv::osk;
 
         fn rule_summary(rule: &PlaybackRule) -> String {
-            let audio = match &rule.then.audio {
-                AudioOutcome::NoOverride => gettext("Audio: default"),
-                AudioOutcome::PreferLanguage { language } => {
-                    format!("{} {language}", gettext("Audio:"))
-                }
-                AudioOutcome::Original => gettext("Audio: original"),
-            };
             let subtitles = match &rule.then.subtitles {
                 SubtitleOutcome::Off => gettext("Subs: off"),
                 SubtitleOutcome::Forced { language } if language.is_empty() => {
@@ -443,10 +490,10 @@ impl AccountSettings {
                     format!("{} = {language}", gettext("When audio"))
                 }
                 LanguageCondition::NotEquals(language) => {
-                    format!("{} != {language}", gettext("When audio"))
+                    format!("{} ≠ {language}", gettext("When audio"))
                 }
             };
-            format!("{when} → {audio}, {subtitles}")
+            format!("{when} → {subtitles}")
         }
 
         let page = adw::PreferencesPage::new();
@@ -460,7 +507,7 @@ impl AccountSettings {
         let enable_row = adw::SwitchRow::new();
         enable_row.set_title(&gettext("Enable Playback Rules"));
         enable_row.set_subtitle(&gettext(
-            "Choose audio and subtitle tracks based on the audio language",
+            "Choose subtitle tracks based on the audio language",
         ));
 
         let rules_list = gtk::ListBox::new();

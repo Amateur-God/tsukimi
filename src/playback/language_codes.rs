@@ -1,3 +1,5 @@
+use gettextrs::gettext;
+
 pub struct LanguageOption {
     pub code: &'static str,
     pub label: &'static str,
@@ -55,4 +57,24 @@ pub fn index_for_code(code: &str) -> u32 {
         .iter()
         .position(|opt| opt.code.eq_ignore_ascii_case(code))
         .unwrap_or(0) as u32
+}
+
+pub fn when_language_combo_labels() -> Vec<String> {
+    let mut labels = vec![gettext("Any")];
+    labels.extend(language_combo_labels());
+    labels
+}
+
+pub fn code_at_when_index(index: u32) -> Option<String> {
+    if index == 0 {
+        return None;
+    }
+    Some(code_at_index(index - 1))
+}
+
+pub fn index_for_when_code(code: Option<&str>) -> u32 {
+    match code {
+        None | Some("") => 0,
+        Some(code) => index_for_code(code) + 1,
+    }
 }

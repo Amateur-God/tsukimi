@@ -639,7 +639,12 @@ impl MPVPage {
                 imp.network_speed_label
                     .set_text(&gettext("Initializing..."));
 
-                let sub_stream_index = selected.as_ref().map(|s| s.sub_index);
+                let rules_active = crate::playback::rules::PlaybackRules::load().enabled;
+                let sub_stream_index = if rules_active {
+                    None
+                } else {
+                    selected.as_ref().map(|s| s.sub_index)
+                };
                 let media_source_id = selected.as_ref().map(|s| s.media_source_id.clone());
                 let id_clone = id.to_owned();
                 let playback_info = match spawn_tokio(async move {
@@ -713,33 +718,40 @@ impl MPVPage {
                     detect_default_audio_language(&media_source.media_streams);
                 let resolved = resolve_playback_tracks(audio_lang.as_deref());
 
-                let media_stream =
-                    if let Some(sub_stream_index) = selected.as_ref().map(|s| s.sub_index) {
-                        media_source.media_streams.get(sub_stream_index as usize)
-                    } else if resolved.subtitles_off {
-                        None
-                    } else if let Some(stream) =
-                        pick_subtitle_stream(&media_source.media_streams, &resolved)
-                    {
-                        Some(stream)
-                    } else {
-                        let sub_version_list: Vec<_> = media_source
-                            .media_streams
-                            .iter()
-                            .filter(|stream| stream.stream_type == "Subtitle")
-                            .map(|stream| {
-                                (
-                                    stream.index,
-                                    stream.display_title.to_owned().unwrap_or_default(),
-                                )
-                            })
-                            .collect();
+                let media_stream = if resolved.subtitles_off {
+                    None
+                } else if !rules_active
+                    && let Some(sub_stream_index) = selected.as_ref().map(|s| s.sub_index)
+                {
+                    media_source.media_streams.get(sub_stream_index as usize)
+                } else if let Some(stream) =
+                    pick_subtitle_stream(&media_source.media_streams, &resolved)
+                {
+                    Some(stream)
+                } else if !rules_active {
+                    let sub_version_list: Vec<_> = media_source
+                        .media_streams
+                        .iter()
+                        .filter(|stream| stream.stream_type == "Subtitle")
+                        .map(|stream| {
+                            (
+                                stream.index,
+                                stream.display_title.to_owned().unwrap_or_default(),
+                            )
+                        })
+                        .collect();
 
-                        make_subtitle_version_choice(sub_version_list)
-                            .and_then(|index| media_source.media_streams.get(index.0 as usize))
-                    };
+                    make_subtitle_version_choice(sub_version_list)
+                        .and_then(|index| media_source.media_streams.get(index.0 as usize))
+                } else {
+                    None
+                };
 
-                if let Some(selected) = selected.as_ref()
+                if resolved.subtitles_off {
+                    imp.video.set_slang(String::new());
+                    imp.video.set_sid(crate::ui::mpv::tsukimi_mpv::TrackSelection::None);
+                } else if !rules_active
+                    && let Some(selected) = selected.as_ref()
                     && !selected.sub_lang.is_empty()
                 {
                     imp.video.set_slang(selected.sub_lang.clone());

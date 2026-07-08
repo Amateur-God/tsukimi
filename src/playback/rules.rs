@@ -115,16 +115,37 @@ fn condition_matches(condition: &RuleCondition, audio_language: &str) -> bool {
     match &condition.audio_language {
         LanguageCondition::Any => true,
         LanguageCondition::Equals(expected) => {
-            language_matches(audio_language, expected)
+            language_matches(Some(audio_language), expected)
         }
         LanguageCondition::NotEquals(expected) => {
-            !language_matches(audio_language, expected)
+            !language_matches(Some(audio_language), expected)
         }
     }
 }
 
-fn language_matches(actual: &str, expected: &str) -> bool {
+pub fn language_matches(actual: Option<&str>, expected: &str) -> bool {
+    let Some(actual) = actual else {
+        return false;
+    };
     let actual = actual.to_lowercase();
     let expected = expected.to_lowercase();
-    actual == expected || actual.starts_with(&format!("{expected}-"))
+    actual == expected
+        || actual.starts_with(&format!("{expected}-"))
+        || expected.starts_with(&actual)
+        || lang_display_name(&actual).contains(&lang_display_name(&expected))
+}
+
+fn lang_display_name(code: &str) -> String {
+    match code {
+        "eng" | "en" => "english".into(),
+        "jpn" | "ja" | "jap" => "japanese".into(),
+        "chs" | "zh" | "chi" | "zho" | "cmn" => "chinese".into(),
+        "fre" | "fr" | "fra" => "french".into(),
+        "ger" | "de" | "deu" => "german".into(),
+        "spa" | "es" => "spanish".into(),
+        "rus" | "ru" => "russian".into(),
+        "por" | "pt" => "portuguese".into(),
+        "ara" | "ar" => "arabic".into(),
+        other => other.to_string(),
+    }
 }

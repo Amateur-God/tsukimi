@@ -85,12 +85,3 @@ window.tv-mode .circular.smaller {
   color: @window_fg_color;
   background: transparent;
 }
-
-window.tv-cursor-hidden,
-window.tv-cursor-hidden * {
-  cursor: none;
-}
-
-window.tv-mode .placeholder-page > headerbar {
-  display: none;
-}

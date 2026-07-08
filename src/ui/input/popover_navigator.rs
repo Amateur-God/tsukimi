@@ -5,6 +5,8 @@ use gtk::{
     gio,
     gio::prelude::MenuModelExt,
     glib,
+    glib::subclass::types::ObjectSubclassIsExt,
+    prelude::*,
 };
 
 use super::actions::InputAction;
@@ -23,16 +25,44 @@ struct FlatMenuEntry {
 }
 
 pub fn handle(window: &Window, action: InputAction) -> bool {
-    if let Some(popover) = find_open_menu_popover(window.upcast_ref()) {
+    if let Some(settings) = window.imp().active_settings.borrow().clone() {
+        if settings.is_visible() && handle_widget_tree(settings.upcast_ref(), action) {
+            return true;
+        }
+    }
+    if let Some(account) = window.imp().active_account_dialog.borrow().clone() {
+        if account.is_visible() && handle_widget_tree(account.upcast_ref(), action) {
+            return true;
+        }
+    }
+    if handle_widget_tree(window.upcast_ref(), action) {
+        return true;
+    }
+    if let Some(root) = window.root() {
+        let root_widget = root.upcast_ref::<gtk::Widget>();
+        if root_widget != window.upcast_ref::<gtk::Widget>() {
+            return handle_widget_tree(root_widget, action);
+        }
+    }
+    false
+}
+
+pub fn handle_widget_tree(root: &gtk::Widget, action: InputAction) -> bool {
+    if let Some(popover) = find_open_menu_popover(root) {
         return handle_popover(&popover, action);
     }
-    let Some(root) = window.root() else {
-        return false;
-    };
-    let Some(popover) = find_visible_popover(root.upcast_ref()) else {
+    let Some(popover) = find_visible_popover(root) else {
         return false;
     };
     handle_popover(&popover, action)
+}
+
+pub fn popdown_visible_popover(root: &gtk::Widget) -> bool {
+    if let Some(popover) = find_open_menu_popover(root).or_else(|| find_visible_popover(root)) {
+        popover.popdown();
+        return true;
+    }
+    false
 }
 
 fn find_open_menu_popover(root: &gtk::Widget) -> Option<gtk::Popover> {

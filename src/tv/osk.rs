@@ -333,6 +333,11 @@ fn show_keyboard_for(widget: &gtk::Widget) {
     OnScreenKeyboard::ensure().show_for(widget);
 }
 
+/// Show the on-screen keyboard for a text entry (e.g. after controller Activate).
+pub fn show_for_widget(widget: &impl IsA<gtk::Widget>) {
+    show_keyboard_for(widget.upcast_ref());
+}
+
 pub fn hide_keyboard() {
     OSK.with(|slot| {
         if let Some(osk) = slot.borrow().as_ref() {
