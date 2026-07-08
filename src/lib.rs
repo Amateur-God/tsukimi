@@ -20,14 +20,7 @@ mod utils;
 pub mod client;
 
 pub use arg::Args;
-pub use config::GETTEXT_PACKAGE;
-use config::{
-    LOCALEDIR,
-    PKGDATADIR,
-    version,
-};
-use once_cell::sync::OnceCell;
-
+pub use config::*;
 use clap::Parser;
 use gettextrs::*;
 use gtk::prelude::*;
@@ -49,9 +42,9 @@ pub const CLIENT_ID: &str = "Tsukimi";
 const APP_RESOURCE_PATH: &str = "/moe/tsuna/tsukimi";
 const GRESOURCE_FILE: &str = "tsukimi.gresource";
 
-pub fn locale_dir() -> &'static str {
-    static FLOCALEDIR: OnceCell<&'static str> = OnceCell::new();
-    FLOCALEDIR.get_or_init(|| {
+fn localizedir() -> &'static str {
+    static RUNTIME: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
+    *RUNTIME.get_or_init(|| {
         env::var("TSUKIMI_LOCALEDIR")
             .map(|path| Box::leak(path.into_boxed_str()) as &str)
             .unwrap_or(LOCALEDIR)
@@ -78,10 +71,11 @@ pub fn run() -> gtk::glib::ExitCode {
     if tv_active && crate::steam::is_steam_big_picture() {
         tracing::info!("Steam Big Picture detected, enabling TV mode for this session");
     }
+
     // Initialize gettext
     setlocale(LocaleCategory::LcAll, String::new());
     bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8").expect("Failed to set textdomain codeset");
-    bindtextdomain(GETTEXT_PACKAGE, locale_dir())
+    bindtextdomain(GETTEXT_PACKAGE, localizedir())
         .expect("Invalid argument passed to bindtextdomain");
 
     textdomain(GETTEXT_PACKAGE).expect("Invalid string passed to textdomain");
@@ -91,7 +85,6 @@ pub fn run() -> gtk::glib::ExitCode {
 
     widgets::init();
 
-    // Initialize the GTK application
     gtk::glib::set_application_name(CLIENT_ID);
 
     let _tokio_guard = runtime().enter();
