@@ -46,10 +46,18 @@ impl ItemPageNavigator {
                 if self.zone.get() == ItemZone::TopBar && page.navigate_top_bar_spatial(0, 1) {
                     return true;
                 }
+                if self.zone.get() == ItemZone::Episodes && page.is_episode_toolbar_focused() {
+                    page.focus_episode_list();
+                    return true;
+                }
                 self.navigate_zone(page, 1)
             }
             InputAction::NavigateUp => {
                 if self.zone.get() == ItemZone::TopBar && page.navigate_top_bar_spatial(0, -1) {
+                    return true;
+                }
+                if self.zone.get() == ItemZone::Episodes && !page.is_episode_toolbar_focused() {
+                    page.focus_episode_toolbar(0);
                     return true;
                 }
                 self.navigate_zone(page, -1)
@@ -58,10 +66,18 @@ impl ItemPageNavigator {
                 if self.zone.get() == ItemZone::TopBar && page.navigate_top_bar_spatial(-1, 0) {
                     return true;
                 }
+                if self.zone.get() == ItemZone::Episodes && page.is_episode_toolbar_focused() {
+                    page.navigate_episode_toolbar(-1);
+                    return true;
+                }
                 self.navigate_horizontal(page, -1)
             }
             InputAction::NavigateRight => {
                 if self.zone.get() == ItemZone::TopBar && page.navigate_top_bar_spatial(1, 0) {
+                    return true;
+                }
+                if self.zone.get() == ItemZone::Episodes && page.is_episode_toolbar_focused() {
+                    page.navigate_episode_toolbar(1);
                     return true;
                 }
                 self.navigate_horizontal(page, 1)
@@ -167,7 +183,11 @@ impl ItemPageNavigator {
                 true
             }
             ItemZone::Episodes => {
-                page.activate_focused_episode();
+                if page.is_episode_toolbar_focused() {
+                    page.activate_episode_toolbar();
+                } else {
+                    page.activate_focused_episode();
+                }
                 true
             }
             ItemZone::MediaInfo => true,
@@ -176,6 +196,7 @@ impl ItemPageNavigator {
 
     fn clear_zone_focus(&self, page: &ItemPage) {
         page.clear_top_bar_focus();
+        page.clear_episode_toolbar_focus();
         for row in self.hortu_rows.borrow().iter() {
             row.clear_selection();
         }
@@ -194,7 +215,11 @@ impl ItemPageNavigator {
             }
             ItemZone::Episodes => {
                 page.scroll_to_hero_page();
-                page.focus_default_episode();
+                if page.has_episode_toolbar() {
+                    page.focus_episode_toolbar(0);
+                } else {
+                    page.focus_episode_list();
+                }
             }
             ItemZone::Hortu(idx) => {
                 if let Some(row) = self.hortu_rows.borrow().get(idx).cloned() {

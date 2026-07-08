@@ -208,10 +208,10 @@ impl GamepadManager {
         }
         crate::tv::osk::mark_gamepad_input();
         let action = match axis {
-            Axis::LeftStickX if value > 0.0 => InputAction::NavigateLeft,
-            Axis::LeftStickX => InputAction::NavigateRight,
-            Axis::LeftStickY if value < 0.0 => InputAction::NavigateDown,
-            Axis::LeftStickY => InputAction::NavigateUp,
+            Axis::LeftStickX if value > 0.0 => InputAction::NavigateRight,
+            Axis::LeftStickX => InputAction::NavigateLeft,
+            Axis::LeftStickY if value < 0.0 => InputAction::NavigateUp,
+            Axis::LeftStickY => InputAction::NavigateDown,
             _ => return,
         };
         actions.push(action);

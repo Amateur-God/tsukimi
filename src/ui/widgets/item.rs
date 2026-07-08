@@ -137,6 +137,8 @@ pub(crate) mod imp {
         pub logobox: TemplateChild<gtk::Box>,
         #[template_child]
         pub seasonlist: TemplateChild<gtk::DropDown>,
+        #[template_child]
+        pub season_view_more: TemplateChild<gtk::Button>,
 
         #[template_child]
         pub mediainfobox: TemplateChild<gtk::Box>,
@@ -233,6 +235,7 @@ pub(crate) mod imp {
         pub imdb_id: RefCell<Option<String>>,
         pub tv_subtitle_btn: RefCell<Option<gtk::Button>>,
         pub mediainfo_selected: Cell<Option<usize>>,
+        pub episode_subzone: Cell<u8>,
     }
 
     #[glib::object_subclass]
@@ -1389,6 +1392,75 @@ impl ItemPage {
         imp.namedropdown.get().is_visible() || imp.subdropdown.get().is_visible()
     }
 
+    pub fn has_episode_toolbar(&self) -> bool {
+        self.imp().toolbar.get().is_visible()
+    }
+
+    pub fn episode_toolbar_widgets(&self) -> Vec<gtk::Widget> {
+        let imp = self.imp();
+        if !imp.toolbar.get().is_visible() {
+            return Vec::new();
+        }
+        vec![
+            imp.seasonlist.get().upcast(),
+            imp.season_view_more.get().upcast(),
+        ]
+    }
+
+    pub fn clear_episode_toolbar_focus(&self) {
+        for widget in self.episode_toolbar_widgets() {
+            crate::tv::set_tv_focused(&widget, false);
+        }
+    }
+
+    pub fn focus_episode_toolbar(&self, index: usize) {
+        self.clear_episode_toolbar_focus();
+        self.clear_episode_focus();
+        if let Some(widget) = self.episode_toolbar_widgets().get(index) {
+            crate::tv::set_tv_focused(widget, true);
+        }
+        self.imp().episode_subzone.set(0);
+    }
+
+    pub fn focus_episode_list(&self) {
+        self.clear_episode_toolbar_focus();
+        self.focus_default_episode();
+        self.imp().episode_subzone.set(1);
+    }
+
+    pub fn is_episode_toolbar_focused(&self) -> bool {
+        self.imp().episode_subzone.get() == 0
+    }
+
+    pub fn navigate_episode_toolbar(&self, delta: i32) {
+        let widgets = self.episode_toolbar_widgets();
+        if widgets.is_empty() {
+            return;
+        }
+        let current = widgets
+            .iter()
+            .position(|widget| widget.has_css_class("tv-focused"))
+            .unwrap_or(0) as i32;
+        let next = (current + delta).clamp(0, widgets.len() as i32 - 1) as usize;
+        self.focus_episode_toolbar(next);
+    }
+
+    pub fn activate_episode_toolbar(&self) {
+        let widgets = self.episode_toolbar_widgets();
+        let index = widgets
+            .iter()
+            .position(|widget| widget.has_css_class("tv-focused"))
+            .unwrap_or(0);
+        let imp = self.imp();
+        if index == 0 {
+            let dropdown = imp.seasonlist.get();
+            dropdown.grab_focus();
+            gtk::prelude::WidgetExt::activate(&dropdown);
+        } else if index == 1 {
+            imp.season_view_more.get().emit_clicked();
+        }
+    }
+
     pub fn has_episode_list(&self) -> bool {
         let imp = self.imp();
         imp.episode_list_bin.get().is_visible()
@@ -1555,7 +1627,9 @@ impl ItemPage {
         } else if widget == fav {
             imp.actionbox.favourite_button().emit_clicked();
         } else if widget == menu {
-            imp.actionbox.menu_button().popup();
+            let btn = imp.actionbox.menu_button();
+            btn.grab_focus();
+            btn.popup();
         } else if imp
             .tv_subtitle_btn
             .borrow()

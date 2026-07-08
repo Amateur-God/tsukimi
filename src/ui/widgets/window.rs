@@ -92,6 +92,8 @@ mod imp {
         #[template_child]
         pub login_stack: TemplateChild<gtk::Stack>,
         #[template_child]
+        pub add_server: TemplateChild<gtk::Button>,
+        #[template_child]
         pub namerow: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub player_toolbar_box: TemplateChild<PlayerToolbarBox>,
@@ -160,6 +162,7 @@ mod imp {
         pub tv_hints_hide_source: RefCell<Option<glib::SourceId>>,
         pub tv_cursor_hide_setup: std::cell::Cell<bool>,
         pub tv_preferences_section: RefCell<Option<adw::SidebarSection>>,
+        pub tv_session_section: RefCell<Option<adw::SidebarSection>>,
 
         #[template_child]
         pub sidebar_breakpoint: TemplateChild<adw::Breakpoint>,
@@ -210,6 +213,11 @@ mod imp {
             });
             klass.install_action("win.add-server", None, |obj, _, _| {
                 obj.new_account();
+            });
+            klass.install_action("win.quit", None, |window, _, _| {
+                if let Some(app) = window.application() {
+                    app.quit();
+                }
             });
         }
 
@@ -445,6 +453,13 @@ impl Window {
         if accounts.is_empty() {
             imp.login_stack.set_visible_child_name("no-server");
             imp.placeholder_navigator.borrow().reset();
+            if crate::tv::focus::tv_focus_enabled() {
+                let add_button = self.imp().add_server.get();
+                self.imp()
+                    .placeholder_navigator
+                    .borrow()
+                    .focus_add_server(&add_button);
+            }
             return;
         } else {
             imp.login_stack.set_visible_child_name("servers");
@@ -604,6 +619,9 @@ impl Window {
         let ac = crate::ui::widgets::account_settings::AccountSettings::new(window_clone);
         ac.set_transient_for(Some(self));
         ac.set_application(Some(&self.application().unwrap()));
+        if crate::tv::is_tv_mode_active() {
+            ac.set_decorated(false);
+        }
         *self.imp().active_settings.borrow_mut() = Some(ac.clone());
         ac.present();
     }
@@ -990,6 +1008,21 @@ impl Window {
             }
         }
 
+        if let Some(session) = imp.tv_session_section.borrow().as_ref() {
+            if session == &section {
+                match item.section_index() {
+                    0 => {
+                        let _ = gtk::prelude::WidgetExt::activate_action(self, "win.relogin", None);
+                    }
+                    1 => {
+                        let _ = gtk::prelude::WidgetExt::activate_action(self, "win.quit", None);
+                    }
+                    _ => {}
+                }
+                return;
+            }
+        }
+
         if section == *imp.servers_section {
             let section_idx = item.section_index() as usize;
             let accounts = SETTINGS.accounts();
@@ -1138,6 +1171,7 @@ impl Window {
 
     pub fn enable_tv_mode_ui(&self, cli_fullscreen: bool) {
         self.add_css_class("tv-mode");
+        self.set_decorated(false);
 
         if self.imp().tv_hints_revealer.borrow().is_none() {
             self.setup_tv_hints();
@@ -1162,6 +1196,7 @@ impl Window {
         }
 
         self.setup_tv_preferences_sidebar();
+        self.setup_tv_session_sidebar();
     }
 
     fn setup_tv_preferences_sidebar(&self) {
@@ -1178,6 +1213,29 @@ impl Window {
         *self.imp().tv_preferences_section.borrow_mut() = Some(stored);
     }
 
+    fn setup_tv_session_sidebar(&self) {
+        if self.imp().tv_session_section.borrow().is_some() {
+            return;
+        }
+        let section = adw::SidebarSection::new();
+        section.set_title(Some(&gettext("Session")));
+        let logout = adw::SidebarItem::new(&gettext("Log Out"));
+        logout.set_icon_name(Some("system-log-out-symbolic"));
+        let quit = adw::SidebarItem::new(&gettext("Quit"));
+        quit.set_icon_name(Some("application-exit-symbolic"));
+        section.append(logout);
+        section.append(quit);
+        let stored = section.clone();
+        self.imp().selectlist.get().append(section);
+        *self.imp().tv_session_section.borrow_mut() = Some(stored);
+    }
+
+    fn remove_tv_session_sidebar(&self) {
+        if let Some(section) = self.imp().tv_session_section.borrow_mut().take() {
+            self.imp().selectlist.get().remove(&section);
+        }
+    }
+
     fn remove_tv_preferences_sidebar(&self) {
         if let Some(section) = self.imp().tv_preferences_section.borrow_mut().take() {
             self.imp().selectlist.get().remove(&section);
@@ -1186,8 +1244,10 @@ impl Window {
 
     pub fn disable_tv_mode_ui(&self) {
         self.remove_tv_preferences_sidebar();
+        self.remove_tv_session_sidebar();
         self.remove_css_class("tv-mode");
         self.remove_css_class("tv-cursor-hidden");
+        self.set_decorated(true);
         if let Some(revealer) = self.imp().tv_hints_revealer.borrow().as_ref() {
             revealer.set_visible(false);
             revealer.set_reveal_child(false);
